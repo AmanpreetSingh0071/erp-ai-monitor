@@ -1,0 +1,9 @@
+High retry count with large delay usually indicates partner API outage.
+
+Transactions delayed above 45 minutes typically mean ERP queue backlog.
+
+Retry spikes from SAP outbound systems often indicate middleware integration failure.
+
+Zero delay anomalies may indicate ingestion timestamp errors.
+
+If retry count exceeds 7 and delay exceeds 40 minutes, the most common cause is partner system downtime or API timeout.

@@ -1,0 +1,8 @@
+rules:
+  - name: SLA_DELAY
+    field: delay_minutes
+    threshold: 30
+
+  - name: HIGH_RETRY
+    field: retry_count
+    threshold: 5
