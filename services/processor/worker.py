@@ -56,9 +56,14 @@ print("Worker started. Waiting for events...")
 # -------------------------
 # Event Processing Loop
 # -------------------------
-for message in consumer:
-
-    event = message.value
+while True:
+    event = {
+        "transaction_id": "TX9999",
+        "system": "SAP",
+        "partner": "Vendor-X",
+        "retry_count": 10,
+        "delay_minutes": 60
+    }
     print("\nEvent received:", event)
 
     # -------------------------
