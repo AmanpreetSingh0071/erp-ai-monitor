@@ -97,3 +97,31 @@ def violations_distribution():
 @app.get("/health")
 def health():
     return {"status": "running"}
+
+@app.get("/insights")
+def get_insights():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT transaction_id, rule_violation, root_cause, created_at
+        FROM exceptions
+        WHERE root_cause IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 10
+    """)
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return [
+        {
+            "transaction_id": r[0],
+            "rule_violation": r[1],
+            "root_cause": r[2],
+            "created_at": r[3]
+        }
+        for r in rows
+    ]

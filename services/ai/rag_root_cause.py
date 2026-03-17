@@ -17,12 +17,11 @@ def build_vectorstore():
 
     return vectorstore
 
+ vectorstore = build_vectorstore()
+
+retriever = vectorstore.as_retriever()
 
 def analyze_with_llm(event):
-
-    vectorstore = build_vectorstore()
-
-    retriever = vectorstore.as_retriever()
 
     docs = retriever.invoke(
         f"retry count {event['retry_count']} delay {event['delay_minutes']}"
