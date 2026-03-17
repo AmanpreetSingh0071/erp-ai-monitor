@@ -1,6 +1,10 @@
 import sys
 import os
+
+# Fix import path for Render
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+print("🚀 APP STARTING...")
 
 from fastapi import FastAPI
 from database import get_connection
@@ -11,7 +15,6 @@ import json
 import joblib
 
 from pydantic import BaseModel
-from services.ai.rag_root_cause import analyze_with_llm
 from services.rule_engine.rule_engine import evaluate_rules
 
 
@@ -29,9 +32,28 @@ app.add_middleware(
 )
 
 # -------------------------
-# Load ML model
+# Load ML model SAFELY
 # -------------------------
-model = joblib.load("models/anomaly_model.pkl")
+model = None
+
+@app.on_event("startup")
+def load_model():
+    global model
+
+    model_path = os.path.join(
+        os.path.dirname(__file__),
+        "models",
+        "anomaly_model.pkl"
+    )
+
+    print(f"📦 Loading model from: {model_path}")
+
+    if not os.path.exists(model_path):
+        raise Exception(f"❌ Model NOT found at {model_path}")
+
+    model = joblib.load(model_path)
+
+    print("✅ Model loaded successfully")
 
 
 # -------------------------
@@ -158,7 +180,7 @@ def get_insights():
 
 
 # -------------------------
-# 🔥 NEW: Ingestion API (Kafka replacement)
+# 🔥 Ingestion API (Kafka replacement)
 # -------------------------
 @app.post("/ingest")
 def ingest_event(event: Event):
@@ -188,6 +210,9 @@ def ingest_event(event: Event):
     # If issue detected
     # -------------------------
     if violations or is_anomaly:
+
+        # 🔥 Lazy import (prevents startup crash)
+        from services.ai.rag_root_cause import analyze_with_llm
 
         root_cause = analyze_with_llm(event_dict)
 
