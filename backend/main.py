@@ -45,6 +45,7 @@ def load_model():
     try:
         model_path = os.path.join(
             os.path.dirname(__file__),
+            "..",
             "models",
             "anomaly_model.pkl"
         )
