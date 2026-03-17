@@ -16,6 +16,7 @@ import joblib
 from pydantic import BaseModel
 
 from services.rule_engine.rule_engine import evaluate_rules
+from services.ai.rag_root_cause import init_rag, analyze_with_llm
 
 
 # -------------------------
@@ -32,14 +33,23 @@ app.add_middleware(
 )
 
 # -------------------------
-# Safe Model Load
+# Global Model
 # -------------------------
 model = None
 
+
+# -------------------------
+# STARTUP (MODEL + RAG)
+# -------------------------
 @app.on_event("startup")
-def load_model():
+def startup_event():
     global model
 
+    print("🚀 APP STARTING...")
+
+    # -------------------------
+    # Load ML model
+    # -------------------------
     print("🔄 Loading model...")
 
     try:
@@ -60,6 +70,14 @@ def load_model():
 
     except Exception as e:
         print("❌ Model load failed:", e)
+
+    # -------------------------
+    # INIT RAG (CRITICAL)
+    # -------------------------
+    try:
+        init_rag()
+    except Exception as e:
+        print("❌ RAG init failed:", e)
 
 
 # -------------------------
@@ -186,44 +204,55 @@ def get_insights():
 
 
 # -------------------------
-# Ingestion API (SAFE)
+# Ingestion API
 # -------------------------
 @app.post("/ingest")
 def ingest_event(event: Event):
+
+    print("🔥 /ingest called")
 
     conn = get_connection()
     cursor = conn.cursor()
 
     event_dict = event.dict()
 
+    # -------------------------
     # Rule Engine
+    # -------------------------
     violations = evaluate_rules(event_dict)
 
-    # ML (only if model loaded)
+    # -------------------------
+    # ML Detection
+    # -------------------------
     is_anomaly = False
+
     if model:
         try:
             features = pd.DataFrame([{
                 "retry_count": event.retry_count,
                 "delay_minutes": event.delay_minutes
             }])
+
             prediction = model.predict(features)
             is_anomaly = prediction[0] == -1
+
         except Exception as e:
             print("ML failed:", e)
 
-    # Process only if issue detected
+    # -------------------------
+    # Process only if issue
+    # -------------------------
     if violations or is_anomaly:
 
-        # SAFE LLM
         try:
-            from services.ai.rag_root_cause import analyze_with_llm
             root_cause = analyze_with_llm(event_dict)
         except Exception as e:
             print("LLM failed:", e)
             root_cause = "Fallback: Possible delay or integration issue"
 
-        # Save
+        # -------------------------
+        # Save to DB
+        # -------------------------
         if violations:
             for rule in violations:
                 cursor.execute(
