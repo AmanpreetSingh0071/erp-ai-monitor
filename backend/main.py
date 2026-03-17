@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 print("🚀 APP STARTING...")
 
 from fastapi import FastAPI
-from database import get_connection
+from backend.database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
 
 import pandas as pd
