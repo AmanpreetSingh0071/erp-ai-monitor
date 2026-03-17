@@ -78,7 +78,7 @@ class Event(BaseModel):
 # -------------------------
 @app.get("/")
 def home():
-    return {"message": "ERP AI Monitoring API running"}
+    return {"status": "ok"}
 
 
 @app.get("/health")
