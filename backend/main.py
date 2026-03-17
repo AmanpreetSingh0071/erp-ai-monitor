@@ -16,7 +16,6 @@ import joblib
 from pydantic import BaseModel
 
 from services.rule_engine.rule_engine import evaluate_rules
-from services.ai.rag_root_cause import init_rag, analyze_with_llm
 
 
 # -------------------------
@@ -39,18 +38,13 @@ model = None
 
 
 # -------------------------
-# STARTUP (MODEL + RAG)
+# STARTUP (MODEL ONLY - NON BLOCKING)
 # -------------------------
 @app.on_event("startup")
 def startup_event():
     global model
 
-    print("🚀 APP STARTING...")
-
-    # -------------------------
-    # Load ML model
-    # -------------------------
-    print("🔄 Loading model...")
+    print("🚀 FastAPI startup triggered")
 
     try:
         model_path = os.path.join(
@@ -70,14 +64,6 @@ def startup_event():
 
     except Exception as e:
         print("❌ Model load failed:", e)
-
-    # -------------------------
-    # INIT RAG (CRITICAL)
-    # -------------------------
-    try:
-        init_rag()
-    except Exception as e:
-        print("❌ RAG init failed:", e)
 
 
 # -------------------------
@@ -244,7 +230,9 @@ def ingest_event(event: Event):
     # -------------------------
     if violations or is_anomaly:
 
+        # ✅ LAZY LOAD RAG HERE (NO STARTUP BLOCK)
         try:
+            from services.ai.rag_root_cause import analyze_with_llm
             root_cause = analyze_with_llm(event_dict)
         except Exception as e:
             print("LLM failed:", e)

@@ -13,11 +13,14 @@ RETRIEVER = None
 def build_vectorstore():
     file_path = os.path.join(BASE_DIR, "ai_knowledge", "incidents.txt")
 
+    print("📄 Loading knowledge from:", file_path)
+
     loader = TextLoader(file_path)
     docs = loader.load()
 
     embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"}   # 🔥 IMPORTANT (avoid GPU)
     )
 
     return FAISS.from_documents(docs, embeddings)
@@ -25,6 +28,9 @@ def build_vectorstore():
 
 def init_rag():
     global VECTORSTORE, RETRIEVER
+
+    if VECTORSTORE is not None:
+        return
 
     print("🔄 Building vectorstore...")
 
@@ -35,18 +41,26 @@ def init_rag():
 
 
 def analyze_with_llm(event):
+    global RETRIEVER
+
+    # 🔥 LAZY LOAD (CRITICAL FIX)
+    if RETRIEVER is None:
+        print("⚡ Lazy loading RAG...")
+        init_rag()
+
     docs = RETRIEVER.invoke(
         f"retry count {event['retry_count']} delay {event['delay_minutes']}"
     )
 
     context = "\n".join([d.page_content for d in docs])
 
-    llm = ChatGroq(
-        model="llama-3.1-8b-instant",
-        api_key=os.getenv("GROQ_API_KEY")
-    )
+    try:
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            api_key=os.getenv("GROQ_API_KEY")
+        )
 
-    prompt = f"""
+        prompt = f"""
 You are an ERP monitoring AI.
 
 Context:
@@ -60,6 +74,9 @@ System: {event["system"]}
 Explain the most likely root cause.
 """
 
-    response = llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        return response.content
 
-    return response.content
+    except Exception as e:
+        print("❌ LLM failed:", e)
+        return "Fallback: Possible delay or integration issue"
