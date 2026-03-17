@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from fastapi import FastAPI
 from database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
