@@ -1,7 +1,7 @@
 import sys
 import os
 
-# Fix import path for Render
+# Fix import path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 print("🚀 APP STARTING...")
@@ -13,8 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import json
 import joblib
-
 from pydantic import BaseModel
+
 from services.rule_engine.rule_engine import evaluate_rules
 
 
@@ -32,7 +32,7 @@ app.add_middleware(
 )
 
 # -------------------------
-# Load ML model SAFELY
+# Safe Model Load
 # -------------------------
 model = None
 
@@ -40,20 +40,25 @@ model = None
 def load_model():
     global model
 
-    model_path = os.path.join(
-        os.path.dirname(__file__),
-        "models",
-        "anomaly_model.pkl"
-    )
+    print("🔄 Loading model...")
 
-    print(f"📦 Loading model from: {model_path}")
+    try:
+        model_path = os.path.join(
+            os.path.dirname(__file__),
+            "models",
+            "anomaly_model.pkl"
+        )
 
-    if not os.path.exists(model_path):
-        raise Exception(f"❌ Model NOT found at {model_path}")
+        print("📦 Model path:", model_path)
 
-    model = joblib.load(model_path)
+        if os.path.exists(model_path):
+            model = joblib.load(model_path)
+            print("✅ Model loaded")
+        else:
+            print("⚠️ Model NOT found — running without ML")
 
-    print("✅ Model loaded successfully")
+    except Exception as e:
+        print("❌ Model load failed:", e)
 
 
 # -------------------------
@@ -180,7 +185,7 @@ def get_insights():
 
 
 # -------------------------
-# 🔥 Ingestion API (Kafka replacement)
+# Ingestion API (SAFE)
 # -------------------------
 @app.post("/ingest")
 def ingest_event(event: Event):
@@ -190,32 +195,34 @@ def ingest_event(event: Event):
 
     event_dict = event.dict()
 
-    # -------------------------
     # Rule Engine
-    # -------------------------
     violations = evaluate_rules(event_dict)
 
-    # -------------------------
-    # ML Prediction
-    # -------------------------
-    features = pd.DataFrame([{
-        "retry_count": event.retry_count,
-        "delay_minutes": event.delay_minutes
-    }])
+    # ML (only if model loaded)
+    is_anomaly = False
+    if model:
+        try:
+            features = pd.DataFrame([{
+                "retry_count": event.retry_count,
+                "delay_minutes": event.delay_minutes
+            }])
+            prediction = model.predict(features)
+            is_anomaly = prediction[0] == -1
+        except Exception as e:
+            print("ML failed:", e)
 
-    prediction = model.predict(features)
-    is_anomaly = prediction[0] == -1
-
-    # -------------------------
-    # If issue detected
-    # -------------------------
+    # Process only if issue detected
     if violations or is_anomaly:
 
-        # 🔥 Lazy import (prevents startup crash)
-        from services.ai.rag_root_cause import analyze_with_llm
+        # SAFE LLM
+        try:
+            from services.ai.rag_root_cause import analyze_with_llm
+            root_cause = analyze_with_llm(event_dict)
+        except Exception as e:
+            print("LLM failed:", e)
+            root_cause = "Fallback: Possible delay or integration issue"
 
-        root_cause = analyze_with_llm(event_dict)
-
+        # Save
         if violations:
             for rule in violations:
                 cursor.execute(
