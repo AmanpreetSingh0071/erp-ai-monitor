@@ -12,7 +12,7 @@ function App() {
 
   useEffect(() => {
     axios
-      .get("https://shiny-spoon-7v674pxj9vq2r4pq-8000.app.github.dev/metrics")
+      .get("https://erp-ai-monitor.onrender.com/metrics")
       .then((res) => {
         setMetrics(res.data);
         setLoading(false);
