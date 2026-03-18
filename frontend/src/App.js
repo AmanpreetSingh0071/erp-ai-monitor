@@ -7,14 +7,10 @@ import {
 const API = "https://erp-ai-monitor.onrender.com";
 
 function App() {
-  const [metrics, setMetrics] = useState({
-    total_violations: 0,
-    high_retry: 0,
-    sla_delay: 0
-  });
-
+  const [metrics, setMetrics] = useState(null);
   const [insights, setInsights] = useState([]);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // -------------------------
   // Fetch data (polling)
@@ -28,7 +24,6 @@ function App() {
         setMetrics(m.data);
         setInsights(i.data);
 
-        // build chart history
         setHistory(prev => [
           ...prev.slice(-10),
           {
@@ -36,8 +31,11 @@ function App() {
             total: m.data.total_violations
           }
         ]);
+
+        setLoading(false);
       } catch (err) {
-        console.error(err);
+        console.error("API ERROR:", err);
+        setLoading(false);
       }
     };
 
@@ -52,24 +50,55 @@ function App() {
   const triggerEvent = async () => {
     const txId = "TX" + Math.floor(Math.random() * 10000);
 
-    await axios.post(`${API}/ingest`, {
-      transaction_id: txId,
-      system: "SAP",
-      partner: "Vendor-X",
-      retry_count: Math.floor(Math.random() * 15),
-      delay_minutes: Math.floor(Math.random() * 100)
-    });
+    try {
+      await axios.post(`${API}/ingest`, {
+        transaction_id: txId,
+        system: "SAP",
+        partner: "Vendor-X",
+        retry_count: Math.floor(Math.random() * 15),
+        delay_minutes: Math.floor(Math.random() * 100)
+      });
 
-    alert(`Triggered ${txId}`);
+      alert(`Triggered ${txId}`);
+    } catch (err) {
+      console.error("Trigger failed:", err);
+    }
   };
+
+  // -------------------------
+  // SAFE ROOT CAUSE PARSER
+  // -------------------------
+  const parseRootCause = (rc) => {
+    if (!rc) return "Processing...";
+
+    try {
+      const parsed = JSON.parse(rc);
+      return parsed.root_cause || rc;
+    } catch {
+      return rc;
+    }
+  };
+
+  // -------------------------
+  // LOADING STATE
+  // -------------------------
+  if (loading) {
+    return <h2 style={{ padding: "40px" }}>Loading dashboard...</h2>;
+  }
+
+  if (!metrics) {
+    return <h2 style={{ padding: "40px" }}>API not responding...</h2>;
+  }
 
   // -------------------------
   // UI
   // -------------------------
   return (
     <div style={container}>
-      <h1 style={{ marginBottom: 10 }}>ERP AI Monitoring</h1>
-      <p style={{ color: "#666" }}>Real-time anomaly detection & AI root cause analysis</p>
+      <h1>ERP AI Monitoring</h1>
+      <p style={{ color: "#666" }}>
+        Real-time anomaly detection & AI root cause analysis
+      </p>
 
       {/* BUTTON */}
       <button onClick={triggerEvent} style={button}>
@@ -83,18 +112,21 @@ function App() {
         <Card title="SLA Delay" value={metrics.sla_delay} />
       </div>
 
-      {/* CHART */}
+      {/* CHART (FIXED HEIGHT WRAPPER) */}
       <div style={chartContainer}>
         <h3>Violation Trend</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={history}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="total" stroke="#3b82f6" />
-          </LineChart>
-        </ResponsiveContainer>
+
+        <div style={{ width: "100%", height: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="time" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="total" stroke="#3b82f6" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* AI INSIGHTS */}
@@ -107,7 +139,6 @@ function App() {
           <div key={i} style={insightCard}>
             <div style={row}>
               <span><b>{item.transaction_id}</b></span>
-
               <StatusBadge status={item.ai_status} />
             </div>
 
@@ -115,17 +146,21 @@ function App() {
               <span style={tag}>{item.rule_violation}</span>
             </div>
 
-            <p style={rootCause}>{item.root_cause || "Processing..."}</p>
+            <p style={rootCause}>
+              {parseRootCause(item.root_cause)}
+            </p>
 
             <p style={time}>
-              {new Date(item.created_at).toLocaleString()}
+              {item.created_at
+                ? new Date(item.created_at).toLocaleString()
+                : ""}
             </p>
           </div>
         ))
       )}
 
-      {/* OPTIONAL GRAFANA */}
-      <h2 style={{ marginTop: 50 }}>System Monitoring (Grafana)</h2>
+      {/* GRAFANA (OPTIONAL) */}
+      <h2 style={{ marginTop: 50 }}>System Monitoring</h2>
 
       <iframe
         title="grafana"
