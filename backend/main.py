@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import json
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -11,7 +12,6 @@ from backend.database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
 
 import pandas as pd
-import json
 import joblib
 from pydantic import BaseModel
 
@@ -83,13 +83,25 @@ def run_ai(transaction_id, event_dict):
 
     print(f"🤖 AI STARTED for {transaction_id}")
 
+    conn = None
+    cursor = None
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        result = analyze_with_llm(event_dict)  # ⚠️ returns STRING
+        result = analyze_with_llm(event_dict)
 
-        print("🧠 AI RESULT:", result)
+        print("🧠 RAW RESULT TYPE:", type(result))
+        print("🧠 RAW RESULT:", result)
+
+        # 🔥 CRITICAL FIX (NO MORE DICT ISSUE)
+        if isinstance(result, dict):
+            result_str = json.dumps(result)
+        else:
+            result_str = str(result)
+
+        print("✅ FINAL STRING:", result_str)
 
         cursor.execute(
             """
@@ -97,31 +109,35 @@ def run_ai(transaction_id, event_dict):
             SET root_cause=%s, ai_status='DONE'
             WHERE transaction_id=%s
             """,
-            (result, transaction_id)
+            (result_str, transaction_id)
         )
 
         conn.commit()
+        print("✅ AI UPDATE DONE")
 
     except Exception as e:
         print("❌ AI FAILED:", e)
 
         try:
-            cursor.execute(
-                """
-                UPDATE exceptions
-                SET root_cause=%s, ai_status='FAILED'
-                WHERE transaction_id=%s
-                """,
-                (str(e), transaction_id)
-            )
-            conn.commit()
-        except:
-            print("❌ DB UPDATE FAILED")
+            if cursor:
+                cursor.execute(
+                    """
+                    UPDATE exceptions
+                    SET root_cause=%s, ai_status='FAILED'
+                    WHERE transaction_id=%s
+                    """,
+                    (str(e), transaction_id)
+                )
+                conn.commit()
+        except Exception as db_err:
+            print("❌ DB UPDATE FAILED:", db_err)
 
     finally:
         try:
-            cursor.close()
-            conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
         except:
             pass
 
@@ -144,6 +160,9 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
     print("🔥 INGEST STARTED")
 
+    conn = None
+    cursor = None
+
     try:
         print("📡 Connecting DB...")
         conn = get_connection()
@@ -157,6 +176,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
         print("Rules:", violations)
 
         is_anomaly = False
+
         if model:
             try:
                 features = pd.DataFrame([{
@@ -165,6 +185,8 @@ def ingest_event(event: Event, bg: BackgroundTasks):
                 }])
 
                 prediction = model.predict(features)
+
+                # 🔥 FIX numpy.bool_
                 is_anomaly = bool(prediction[0] == -1)
 
             except Exception as e:
@@ -200,9 +222,6 @@ def ingest_event(event: Event, bg: BackgroundTasks):
             print("🚀 Triggering background AI...")
             bg.add_task(run_ai, event.transaction_id, event_dict)
 
-        cursor.close()
-        conn.close()
-
         return {
             "status": "queued",
             "transaction_id": event.transaction_id
@@ -212,11 +231,19 @@ def ingest_event(event: Event, bg: BackgroundTasks):
         print("❌ INGEST FAILED:", e)
         return {"error": str(e)}
 
+    finally:
+        try:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        except:
+            pass
+
 
 # -------------------------
 # DEBUG ENDPOINTS
 # -------------------------
-
 @app.get("/test-groq")
 def test_groq():
     try:
@@ -254,7 +281,7 @@ def test_rag():
 
         return {
             "status": "success",
-            "response": result,
+            "response": str(result),
             "latency": round(time.time() - start, 2)
         }
 

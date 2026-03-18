@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer
+} from "recharts";
+
+const API = "https://erp-ai-monitor.onrender.com";
 
 function App() {
   const [metrics, setMetrics] = useState({
@@ -8,122 +13,233 @@ function App() {
     sla_delay: 0
   });
 
-  const [insights, setInsights] = useState([]);   // ✅ NEW
-
-  const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState([]);
+  const [history, setHistory] = useState([]);
 
   // -------------------------
-  // Fetch Metrics
+  // Fetch data (polling)
   // -------------------------
   useEffect(() => {
-    axios
-      .get("https://erp-ai-monitor.onrender.com/metrics")
-      .then((res) => {
-        setMetrics(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("API error:", err);
-        setLoading(false);
-      });
+    const fetchData = async () => {
+      try {
+        const m = await axios.get(`${API}/metrics`);
+        const i = await axios.get(`${API}/insights`);
+
+        setMetrics(m.data);
+        setInsights(i.data);
+
+        // build chart history
+        setHistory(prev => [
+          ...prev.slice(-10),
+          {
+            time: new Date().toLocaleTimeString(),
+            total: m.data.total_violations
+          }
+        ]);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // -------------------------
-  // Fetch AI Insights
+  // Simulate transaction
   // -------------------------
-  useEffect(() => {
-    axios
-      .get("https://erp-ai-monitor.onrender.com/insights")
-      .then((res) => {
-        setInsights(res.data);
-      })
-      .catch((err) => {
-        console.error("Insights error:", err);
-      });
-  }, []);
+  const triggerEvent = async () => {
+    const txId = "TX" + Math.floor(Math.random() * 10000);
 
-  if (loading) {
-    return <h2 style={{ padding: "40px" }}>Loading metrics...</h2>;
-  }
+    await axios.post(`${API}/ingest`, {
+      transaction_id: txId,
+      system: "SAP",
+      partner: "Vendor-X",
+      retry_count: Math.floor(Math.random() * 15),
+      delay_minutes: Math.floor(Math.random() * 100)
+    });
 
+    alert(`Triggered ${txId}`);
+  };
+
+  // -------------------------
+  // UI
+  // -------------------------
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <h1>ERP AI Monitoring Dashboard</h1>
+    <div style={container}>
+      <h1 style={{ marginBottom: 10 }}>ERP AI Monitoring</h1>
+      <p style={{ color: "#666" }}>Real-time anomaly detection & AI root cause analysis</p>
 
-      {/* -------------------------
-          Metrics Cards
-      ------------------------- */}
-      <div style={{ display: "flex", gap: "20px", marginTop: "30px" }}>
-        <div style={cardStyle}>
-          <h3>Total Violations</h3>
-          <h2>{metrics.total_violations}</h2>
-        </div>
+      {/* BUTTON */}
+      <button onClick={triggerEvent} style={button}>
+        + Simulate Transaction
+      </button>
 
-        <div style={cardStyle}>
-          <h3>High Retry</h3>
-          <h2>{metrics.high_retry}</h2>
-        </div>
-
-        <div style={cardStyle}>
-          <h3>SLA Delay</h3>
-          <h2>{metrics.sla_delay}</h2>
-        </div>
+      {/* METRICS */}
+      <div style={cardRow}>
+        <Card title="Total Violations" value={metrics.total_violations} />
+        <Card title="High Retry" value={metrics.high_retry} />
+        <Card title="SLA Delay" value={metrics.sla_delay} />
       </div>
 
-      {/* -------------------------
-          AI Insights Section
-      ------------------------- */}
-      <h2 style={{ marginTop: "50px" }}>AI Root Cause Insights</h2>
+      {/* CHART */}
+      <div style={chartContainer}>
+        <h3>Violation Trend</h3>
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={history}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="time" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="total" stroke="#3b82f6" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* AI INSIGHTS */}
+      <h2 style={{ marginTop: 40 }}>AI Root Cause Insights</h2>
 
       {insights.length === 0 ? (
-        <p>No AI insights yet...</p>
+        <p>No insights yet...</p>
       ) : (
         insights.map((item, i) => (
-          <div
-            key={i}
-            style={{
-              border: "1px solid #ddd",
-              padding: "15px",
-              marginTop: "15px",
-              borderRadius: "10px",
-              background: "#f4f6ff"
-            }}
-          >
-            <p><strong>Transaction:</strong> {item.transaction_id}</p>
+          <div key={i} style={insightCard}>
+            <div style={row}>
+              <span><b>{item.transaction_id}</b></span>
 
-            <p>
-              <strong>Violation:</strong>{" "}
-              <span style={{
-                color: "white",
-                background: "red",
-                padding: "3px 8px",
-                borderRadius: "5px"
-              }}>
-                {item.rule_violation}
-              </span>
-            </p>
+              <StatusBadge status={item.ai_status} />
+            </div>
 
-            <p style={{
-              background: "#eef",
-              padding: "10px",
-              borderRadius: "6px"
-            }}>
-              {item.root_cause}
+            <div style={{ marginTop: 8 }}>
+              <span style={tag}>{item.rule_violation}</span>
+            </div>
+
+            <p style={rootCause}>{item.root_cause || "Processing..."}</p>
+
+            <p style={time}>
+              {new Date(item.created_at).toLocaleString()}
             </p>
           </div>
         ))
       )}
+
+      {/* OPTIONAL GRAFANA */}
+      <h2 style={{ marginTop: 50 }}>System Monitoring (Grafana)</h2>
+
+      <iframe
+        title="grafana"
+        src="https://your-grafana-url/d/your-dashboard"
+        width="100%"
+        height="500px"
+        style={{ borderRadius: 10, border: "1px solid #ddd" }}
+      />
     </div>
   );
 }
 
-const cardStyle = {
-  background: "#f4f4f4",
+// -------------------------
+// Components
+// -------------------------
+function Card({ title, value }) {
+  return (
+    <div style={card}>
+      <h4>{title}</h4>
+      <h2>{value}</h2>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const color =
+    status === "DONE" ? "green" :
+    status === "FAILED" ? "red" : "orange";
+
+  return (
+    <span style={{
+      background: color,
+      color: "white",
+      padding: "3px 10px",
+      borderRadius: "20px",
+      fontSize: "12px"
+    }}>
+      {status}
+    </span>
+  );
+}
+
+// -------------------------
+// Styles
+// -------------------------
+const container = {
+  padding: "30px",
+  fontFamily: "Arial",
+  background: "#f8fafc"
+};
+
+const cardRow = {
+  display: "flex",
+  gap: "20px",
+  marginTop: "20px"
+};
+
+const card = {
+  background: "white",
   padding: "20px",
-  borderRadius: "10px",
+  borderRadius: "12px",
   width: "200px",
-  textAlign: "center",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.2)"
+  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+};
+
+const button = {
+  marginTop: "20px",
+  padding: "10px 20px",
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer"
+};
+
+const chartContainer = {
+  marginTop: "40px",
+  background: "white",
+  padding: "20px",
+  borderRadius: "12px",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+};
+
+const insightCard = {
+  background: "white",
+  padding: "15px",
+  marginTop: "15px",
+  borderRadius: "10px",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
+};
+
+const row = {
+  display: "flex",
+  justifyContent: "space-between"
+};
+
+const tag = {
+  background: "#ef4444",
+  color: "white",
+  padding: "4px 10px",
+  borderRadius: "6px"
+};
+
+const rootCause = {
+  marginTop: "10px",
+  background: "#eef2ff",
+  padding: "10px",
+  borderRadius: "6px"
+};
+
+const time = {
+  fontSize: "12px",
+  color: "#666",
+  marginTop: "5px"
 };
 
 export default App;
