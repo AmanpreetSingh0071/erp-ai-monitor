@@ -58,7 +58,9 @@ def startup_event():
         print("❌ Model load error:", e)
 
     try:
+        print("🔄 Initializing RAG...")
         init_rag()
+        print("✅ RAG ready")
     except Exception as e:
         print("❌ RAG init failed:", e)
 
@@ -78,11 +80,16 @@ class Event(BaseModel):
 # BACKGROUND AI TASK
 # -------------------------
 def run_ai(transaction_id, event_dict):
-    conn = get_connection()
-    cursor = conn.cursor()
+
+    print(f"🤖 AI STARTED for {transaction_id}")
 
     try:
-        result = analyze_with_llm(event_dict)
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        result = analyze_with_llm(event_dict)  # ⚠️ returns STRING
+
+        print("🧠 AI RESULT:", result)
 
         cursor.execute(
             """
@@ -90,24 +97,33 @@ def run_ai(transaction_id, event_dict):
             SET root_cause=%s, ai_status='DONE'
             WHERE transaction_id=%s
             """,
-            (result["root_cause"], transaction_id)
+            (result, transaction_id)
         )
+
+        conn.commit()
 
     except Exception as e:
         print("❌ AI FAILED:", e)
 
-        cursor.execute(
-            """
-            UPDATE exceptions
-            SET root_cause=%s, ai_status='FAILED'
-            WHERE transaction_id=%s
-            """,
-            (str(e), transaction_id)
-        )
+        try:
+            cursor.execute(
+                """
+                UPDATE exceptions
+                SET root_cause=%s, ai_status='FAILED'
+                WHERE transaction_id=%s
+                """,
+                (str(e), transaction_id)
+            )
+            conn.commit()
+        except:
+            print("❌ DB UPDATE FAILED")
 
-    conn.commit()
-    cursor.close()
-    conn.close()
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
 
 # -------------------------
@@ -126,56 +142,75 @@ def health():
 @app.post("/ingest")
 def ingest_event(event: Event, bg: BackgroundTasks):
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    print("🔥 INGEST STARTED")
 
-    event_dict = event.dict()
+    try:
+        print("📡 Connecting DB...")
+        conn = get_connection()
+        cursor = conn.cursor()
+        print("✅ DB connected")
 
-    violations = evaluate_rules(event_dict)
+        event_dict = event.dict()
 
-    is_anomaly = False
-    if model:
-        try:
-            features = pd.DataFrame([{
-                "retry_count": event.retry_count,
-                "delay_minutes": event.delay_minutes
-            }])
-            prediction = model.predict(features)
-            is_anomaly = prediction[0] == -1
-        except Exception as e:
-            print("ML failed:", e)
+        print("⚙️ Running rules...")
+        violations = evaluate_rules(event_dict)
+        print("Rules:", violations)
 
-    if violations or is_anomaly:
+        is_anomaly = False
+        if model:
+            try:
+                features = pd.DataFrame([{
+                    "retry_count": event.retry_count,
+                    "delay_minutes": event.delay_minutes
+                }])
 
-        cursor.execute(
-            """
-            INSERT INTO exceptions (
-                transaction_id,
-                rule_violation,
-                event_data,
-                anomaly,
-                ai_status
+                prediction = model.predict(features)
+                is_anomaly = prediction[0] == -1
+
+            except Exception as e:
+                print("❌ ML failed:", e)
+
+        if violations or is_anomaly:
+
+            print("💾 Inserting into DB...")
+
+            cursor.execute(
+                """
+                INSERT INTO exceptions (
+                    transaction_id,
+                    rule_violation,
+                    event_data,
+                    anomaly,
+                    ai_status
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    event.transaction_id,
+                    violations[0] if violations else "ML_ANOMALY",
+                    json.dumps(event_dict),
+                    is_anomaly,
+                    "PENDING"
+                )
             )
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            (
-                event.transaction_id,
-                violations[0] if violations else "ML_ANOMALY",
-                json.dumps(event_dict),
-                is_anomaly,
-                "PENDING"
-            )
-        )
 
-        conn.commit()
+            conn.commit()
+            print("✅ Insert done")
 
-        # 🔥 BACKGROUND AI
-        bg.add_task(run_ai, event.transaction_id, event_dict)
+            print("🚀 Triggering background AI...")
+            bg.add_task(run_ai, event.transaction_id, event_dict)
 
-    cursor.close()
-    conn.close()
+        cursor.close()
+        conn.close()
 
-    return {"status": "queued", "transaction_id": event.transaction_id}
+        return {
+            "status": "queued",
+            "transaction_id": event.transaction_id
+        }
+
+    except Exception as e:
+        print("❌ INGEST FAILED:", e)
+        return {"error": str(e)}
 
 
 # -------------------------
@@ -209,6 +244,8 @@ def test_groq():
 @app.get("/test-rag")
 def test_rag():
     try:
+        start = time.time()
+
         result = analyze_with_llm({
             "retry_count": 5,
             "delay_minutes": 20,
@@ -217,7 +254,8 @@ def test_rag():
 
         return {
             "status": "success",
-            "timings": result
+            "response": result,
+            "latency": round(time.time() - start, 2)
         }
 
     except Exception as e:
@@ -226,6 +264,9 @@ def test_rag():
 
 @app.get("/ai-status/{tx_id}")
 def ai_status(tx_id: str):
+
+    print(f"🔍 Checking AI status for {tx_id}")
+
     conn = get_connection()
     cursor = conn.cursor()
 

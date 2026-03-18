@@ -15,7 +15,8 @@ def get_connection():
         database=url.path[1:],   # remove leading '/'
         user=url.username,
         password=url.password,
-        port=url.port
+        port=url.port,
+        sslmode="require"
     )
 
     return conn
