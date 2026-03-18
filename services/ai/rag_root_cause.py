@@ -1,4 +1,5 @@
 import os
+import time
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -13,14 +14,14 @@ RETRIEVER = None
 def build_vectorstore():
     file_path = os.path.join(BASE_DIR, "ai_knowledge", "incidents.txt")
 
-    print("📄 Loading knowledge from:", file_path)
+    print("📄 Loading knowledge:", file_path)
 
     loader = TextLoader(file_path)
     docs = loader.load()
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cpu"}   # 🔥 IMPORTANT (avoid GPU)
+        model_kwargs={"device": "cpu"}
     )
 
     return FAISS.from_documents(docs, embeddings)
@@ -43,10 +44,14 @@ def init_rag():
 def analyze_with_llm(event):
     global RETRIEVER
 
-    # 🔥 LAZY LOAD (CRITICAL FIX)
     if RETRIEVER is None:
         print("⚡ Lazy loading RAG...")
         init_rag()
+
+    # -------------------------
+    # RAG timing
+    # -------------------------
+    rag_start = time.time()
 
     docs = RETRIEVER.invoke(
         f"retry count {event['retry_count']} delay {event['delay_minutes']}"
@@ -54,29 +59,34 @@ def analyze_with_llm(event):
 
     context = "\n".join([d.page_content for d in docs])
 
+    print(f"📚 RAG time: {time.time() - rag_start:.2f}s")
+
+    # -------------------------
+    # GROQ timing
+    # -------------------------
+    print("🔑 GROQ KEY:", os.getenv("GROQ_API_KEY"))
+
     try:
+        llm_start = time.time()
+
         llm = ChatGroq(
             model="llama-3.1-8b-instant",
             api_key=os.getenv("GROQ_API_KEY")
         )
 
-        prompt = f"""
-You are an ERP monitoring AI.
-
+        response = llm.invoke(f"""
 Context:
 {context}
 
-Event:
-Retry Count: {event["retry_count"]}
-Delay Minutes: {event["delay_minutes"]}
+Retry: {event["retry_count"]}
+Delay: {event["delay_minutes"]}
 System: {event["system"]}
+""")
 
-Explain the most likely root cause.
-"""
+        print(f"🤖 GROQ time: {time.time() - llm_start:.2f}s")
 
-        response = llm.invoke(prompt)
         return response.content
 
     except Exception as e:
-        print("❌ LLM failed:", e)
-        return "Fallback: Possible delay or integration issue"
+        print("❌ GROQ FAILED:", e)
+        return "Fallback: AI unavailable"

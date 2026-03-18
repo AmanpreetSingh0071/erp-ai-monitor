@@ -1,12 +1,8 @@
 import sys
 import os
-
-# Fix import path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-print("🚀 APP STARTING...")
-
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from backend.database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,10 +13,6 @@ from pydantic import BaseModel
 
 from services.rule_engine.rule_engine import evaluate_rules
 
-
-# -------------------------
-# App
-# -------------------------
 app = FastAPI(title="ERP AI Monitoring API")
 
 app.add_middleware(
@@ -31,20 +23,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------------------------
-# Global Model
-# -------------------------
 model = None
 
 
 # -------------------------
-# STARTUP (MODEL ONLY - NON BLOCKING)
+# STARTUP
 # -------------------------
 @app.on_event("startup")
 def startup_event():
     global model
 
-    print("🚀 FastAPI startup triggered")
+    print("🚀 APP STARTING...")
 
     try:
         model_path = os.path.join(
@@ -54,20 +43,18 @@ def startup_event():
             "anomaly_model.pkl"
         )
 
-        print("📦 Model path:", model_path)
-
         if os.path.exists(model_path):
             model = joblib.load(model_path)
             print("✅ Model loaded")
         else:
-            print("⚠️ Model NOT found — running without ML")
+            print("⚠️ Model not found")
 
     except Exception as e:
         print("❌ Model load failed:", e)
 
 
 # -------------------------
-# Event Schema
+# Schema
 # -------------------------
 class Event(BaseModel):
     transaction_id: str
@@ -75,6 +62,38 @@ class Event(BaseModel):
     partner: str
     retry_count: int
     delay_minutes: int
+
+
+# -------------------------
+# BACKGROUND AI TASK
+# -------------------------
+def process_ai(transaction_id, event_dict):
+    print(f"🧠 Processing AI for {transaction_id}")
+
+    try:
+        from services.ai.rag_root_cause import analyze_with_llm
+        root_cause = analyze_with_llm(event_dict)
+    except Exception as e:
+        print("❌ AI failed:", e)
+        root_cause = "Fallback: AI failed"
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        UPDATE exceptions
+        SET root_cause=%s, ai_status='DONE'
+        WHERE transaction_id=%s
+        """,
+        (root_cause, transaction_id)
+    )
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print(f"✅ AI completed for {transaction_id}")
 
 
 # -------------------------
@@ -90,202 +109,153 @@ def health():
     return {"status": "running"}
 
 
-@app.get("/metrics")
-def get_metrics():
+@app.get("/ai-status/{tx_id}")
+def ai_status(tx_id: str):
+
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM exceptions")
-    total = cursor.fetchone()[0]
+    cursor.execute(
+        "SELECT root_cause, ai_status FROM exceptions WHERE transaction_id=%s",
+        (tx_id,)
+    )
 
-    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='HIGH_RETRY'")
-    high_retry = cursor.fetchone()[0]
-
-    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='SLA_DELAY'")
-    sla_delay = cursor.fetchone()[0]
+    row = cursor.fetchone()
 
     cursor.close()
     conn.close()
 
+    if not row:
+        return {"status": "NOT_FOUND"}
+
     return {
-        "total_violations": total,
-        "high_retry": high_retry,
-        "sla_delay": sla_delay
+        "root_cause": row[0],
+        "ai_status": row[1]
     }
 
 
-@app.get("/violations")
-def get_violations():
-    conn = get_connection()
-    cursor = conn.cursor()
+# -------------------------
+# DEBUG: GROQ TEST
+# -------------------------
+@app.get("/test-groq")
+def test_groq():
+    import os
+    from langchain_groq import ChatGroq
 
-    cursor.execute("""
-        SELECT transaction_id, rule_violation, created_at
-        FROM exceptions
-        ORDER BY created_at DESC
-        LIMIT 20
-    """)
+    try:
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            api_key=os.getenv("GROQ_API_KEY")
+        )
 
-    rows = cursor.fetchall()
+        response = llm.invoke("Say OK")
 
-    cursor.close()
-    conn.close()
+        return {"status": "success", "response": response.content}
 
-    return [
-        {
-            "transaction_id": r[0],
-            "rule_violation": r[1],
-            "created_at": r[2]
-        }
-        for r in rows
-    ]
-
-
-@app.get("/violations/distribution")
-def violations_distribution():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT rule_violation, COUNT(*)
-        FROM exceptions
-        GROUP BY rule_violation
-    """)
-
-    rows = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    return {r[0]: r[1] for r in rows}
-
-
-@app.get("/insights")
-def get_insights():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT transaction_id, rule_violation, root_cause, created_at
-        FROM exceptions
-        WHERE root_cause IS NOT NULL
-        ORDER BY created_at DESC
-        LIMIT 10
-    """)
-
-    rows = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    return [
-        {
-            "transaction_id": r[0],
-            "rule_violation": r[1],
-            "root_cause": r[2],
-            "created_at": r[3]
-        }
-        for r in rows
-    ]
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 
 # -------------------------
-# Ingestion API
+# DEBUG: RAG TEST
+# -------------------------
+@app.get("/test-rag")
+def test_rag():
+    import time
+    from services.ai.rag_root_cause import init_rag, RETRIEVER
+
+    try:
+        start = time.time()
+
+        if RETRIEVER is None:
+            init_rag()
+
+        docs = RETRIEVER.invoke("retry delay issue")
+
+        return {
+            "status": "success",
+            "docs_found": len(docs),
+            "time_taken": time.time() - start
+        }
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+# -------------------------
+# DEBUG: FULL AI TEST
+# -------------------------
+@app.get("/test-ai")
+def test_ai():
+    from services.ai.rag_root_cause import analyze_with_llm
+
+    try:
+        result = analyze_with_llm({
+            "retry_count": 10,
+            "delay_minutes": 60,
+            "system": "SAP"
+        })
+
+        return {"status": "success", "result": result}
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+# -------------------------
+# INGEST (ASYNC)
 # -------------------------
 @app.post("/ingest")
-def ingest_event(event: Event):
-
-    print("🔥 /ingest called")
+def ingest_event(event: Event, bg: BackgroundTasks):
 
     conn = get_connection()
     cursor = conn.cursor()
 
     event_dict = event.dict()
 
-    # -------------------------
-    # Rule Engine
-    # -------------------------
     violations = evaluate_rules(event_dict)
 
-    # -------------------------
-    # ML Detection
-    # -------------------------
     is_anomaly = False
-
     if model:
         try:
             features = pd.DataFrame([{
                 "retry_count": event.retry_count,
                 "delay_minutes": event.delay_minutes
             }])
-
             prediction = model.predict(features)
             is_anomaly = prediction[0] == -1
-
         except Exception as e:
             print("ML failed:", e)
 
-    # -------------------------
-    # Process only if issue
-    # -------------------------
     if violations or is_anomaly:
 
-        # ✅ LAZY LOAD RAG HERE (NO STARTUP BLOCK)
-        try:
-            from services.ai.rag_root_cause import analyze_with_llm
-            root_cause = analyze_with_llm(event_dict)
-        except Exception as e:
-            print("LLM failed:", e)
-            root_cause = "Fallback: Possible delay or integration issue"
-
-        # -------------------------
-        # Save to DB
-        # -------------------------
-        if violations:
-            for rule in violations:
-                cursor.execute(
-                    """
-                    INSERT INTO exceptions (
-                        transaction_id,
-                        rule_violation,
-                        event_data,
-                        root_cause,
-                        anomaly
-                    )
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        event.transaction_id,
-                        rule,
-                        json.dumps(event_dict),
-                        root_cause,
-                        is_anomaly
-                    )
-                )
-        else:
-            cursor.execute(
-                """
-                INSERT INTO exceptions (
-                    transaction_id,
-                    rule_violation,
-                    event_data,
-                    root_cause,
-                    anomaly
-                )
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (
-                    event.transaction_id,
-                    "ML_ANOMALY",
-                    json.dumps(event_dict),
-                    root_cause,
-                    True
-                )
+        cursor.execute(
+            """
+            INSERT INTO exceptions (
+                transaction_id,
+                rule_violation,
+                event_data,
+                root_cause,
+                anomaly,
+                ai_status
             )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                event.transaction_id,
+                violations[0] if violations else "ML_ANOMALY",
+                json.dumps(event_dict),
+                None,
+                is_anomaly,
+                "PENDING"
+            )
+        )
 
         conn.commit()
+
+        bg.add_task(process_ai, event.transaction_id, event_dict)
 
     cursor.close()
     conn.close()
 
-    return {"status": "processed"}
+    return {"status": "queued", "transaction_id": event.transaction_id}
