@@ -92,16 +92,10 @@ def run_ai(transaction_id, event_dict):
 
         result = analyze_with_llm(event_dict)
 
-        print("🧠 RAW RESULT TYPE:", type(result))
-        print("🧠 RAW RESULT:", result)
-
-        # 🔥 CRITICAL FIX (NO MORE DICT ISSUE)
         if isinstance(result, dict):
             result_str = json.dumps(result)
         else:
             result_str = str(result)
-
-        print("✅ FINAL STRING:", result_str)
 
         cursor.execute(
             """
@@ -133,13 +127,10 @@ def run_ai(transaction_id, event_dict):
             print("❌ DB UPDATE FAILED:", db_err)
 
     finally:
-        try:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
-        except:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # -------------------------
@@ -164,19 +155,14 @@ def ingest_event(event: Event, bg: BackgroundTasks):
     cursor = None
 
     try:
-        print("📡 Connecting DB...")
         conn = get_connection()
         cursor = conn.cursor()
-        print("✅ DB connected")
 
         event_dict = event.dict()
 
-        print("⚙️ Running rules...")
         violations = evaluate_rules(event_dict)
-        print("Rules:", violations)
 
         is_anomaly = False
-
         if model:
             try:
                 features = pd.DataFrame([{
@@ -185,16 +171,12 @@ def ingest_event(event: Event, bg: BackgroundTasks):
                 }])
 
                 prediction = model.predict(features)
-
-                # 🔥 FIX numpy.bool_
                 is_anomaly = bool(prediction[0] == -1)
 
             except Exception as e:
                 print("❌ ML failed:", e)
 
         if violations or is_anomaly:
-
-            print("💾 Inserting into DB...")
 
             cursor.execute(
                 """
@@ -217,9 +199,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
             )
 
             conn.commit()
-            print("✅ Insert done")
 
-            print("🚀 Triggering background AI...")
             bg.add_task(run_ai, event.transaction_id, event_dict)
 
         return {
@@ -232,68 +212,74 @@ def ingest_event(event: Event, bg: BackgroundTasks):
         return {"error": str(e)}
 
     finally:
-        try:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
-        except:
-            pass
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # -------------------------
-# DEBUG ENDPOINTS
+# ✅ ADD THESE (CRITICAL)
 # -------------------------
-@app.get("/test-groq")
-def test_groq():
-    try:
-        start = time.time()
 
-        from langchain_groq import ChatGroq
+@app.get("/metrics")
+def get_metrics():
+    conn = get_connection()
+    cursor = conn.cursor()
 
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            api_key=os.getenv("GROQ_API_KEY")
-        )
+    cursor.execute("SELECT COUNT(*) FROM exceptions")
+    total = cursor.fetchone()[0]
 
-        response = llm.invoke("Say OK")
+    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='HIGH_RETRY'")
+    high_retry = cursor.fetchone()[0]
 
-        return {
-            "status": "success",
-            "response": response.content,
-            "latency": round(time.time() - start, 2)
+    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='SLA_DELAY'")
+    sla_delay = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "total_violations": total,
+        "high_retry": high_retry,
+        "sla_delay": sla_delay
+    }
+
+
+@app.get("/insights")
+def get_insights():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT transaction_id, rule_violation, root_cause, created_at, ai_status
+        FROM exceptions
+        ORDER BY created_at DESC
+        LIMIT 10
+    """)
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return [
+        {
+            "transaction_id": r[0],
+            "rule_violation": r[1],
+            "root_cause": r[2],
+            "created_at": r[3],
+            "ai_status": r[4]
         }
-
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
-
-
-@app.get("/test-rag")
-def test_rag():
-    try:
-        start = time.time()
-
-        result = analyze_with_llm({
-            "retry_count": 5,
-            "delay_minutes": 20,
-            "system": "SAP"
-        })
-
-        return {
-            "status": "success",
-            "response": str(result),
-            "latency": round(time.time() - start, 2)
-        }
-
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
+        for r in rows
+    ]
 
 
+# -------------------------
+# DEBUG
+# -------------------------
 @app.get("/ai-status/{tx_id}")
 def ai_status(tx_id: str):
-
-    print(f"🔍 Checking AI status for {tx_id}")
-
     conn = get_connection()
     cursor = conn.cursor()
 
