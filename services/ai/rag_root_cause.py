@@ -1,8 +1,9 @@
 import os
 import time
+
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import FakeEmbeddings
 from langchain_groq import ChatGroq
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -14,15 +15,13 @@ RETRIEVER = None
 def build_vectorstore():
     file_path = os.path.join(BASE_DIR, "ai_knowledge", "incidents.txt")
 
-    print("📄 Loading knowledge:", file_path)
+    if not os.path.exists(file_path):
+        raise Exception("incidents.txt NOT FOUND")
 
     loader = TextLoader(file_path)
     docs = loader.load()
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cpu"}
-    )
+    embeddings = FakeEmbeddings(size=384)
 
     return FAISS.from_documents(docs, embeddings)
 
@@ -30,63 +29,67 @@ def build_vectorstore():
 def init_rag():
     global VECTORSTORE, RETRIEVER
 
-    if VECTORSTORE is not None:
-        return
-
-    print("🔄 Building vectorstore...")
+    start = time.time()
 
     VECTORSTORE = build_vectorstore()
     RETRIEVER = VECTORSTORE.as_retriever()
 
-    print("✅ Vectorstore ready")
+    print(f"✅ RAG initialized in {round(time.time() - start, 2)}s")
 
 
 def analyze_with_llm(event):
-    global RETRIEVER
-
     if RETRIEVER is None:
-        print("⚡ Lazy loading RAG...")
-        init_rag()
+        raise Exception("RAG NOT INITIALIZED")
 
-    # -------------------------
-    # RAG timing
-    # -------------------------
-    rag_start = time.time()
+    start_total = time.time()
+
+    # -------- RAG retrieval ----------
+    start_rag = time.time()
 
     docs = RETRIEVER.invoke(
-        f"retry count {event['retry_count']} delay {event['delay_minutes']}"
+        f"retry {event['retry_count']} delay {event['delay_minutes']} system {event['system']}"
     )
+
+    rag_time = round(time.time() - start_rag, 2)
 
     context = "\n".join([d.page_content for d in docs])
 
-    print(f"📚 RAG time: {time.time() - rag_start:.2f}s")
+    # -------- LLM ----------
+    start_llm = time.time()
 
-    # -------------------------
-    # GROQ timing
-    # -------------------------
-    print("🔑 GROQ KEY:", os.getenv("GROQ_API_KEY"))
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise Exception("GROQ_API_KEY NOT SET")
 
-    try:
-        llm_start = time.time()
+    llm = ChatGroq(
+        model="llama-3.1-8b-instant",
+        api_key=api_key
+    )
 
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            api_key=os.getenv("GROQ_API_KEY")
-        )
+    prompt = f"""
+You are an ERP monitoring AI.
 
-        response = llm.invoke(f"""
 Context:
 {context}
 
-Retry: {event["retry_count"]}
-Delay: {event["delay_minutes"]}
+Event:
+Retry Count: {event["retry_count"]}
+Delay Minutes: {event["delay_minutes"]}
 System: {event["system"]}
-""")
 
-        print(f"🤖 GROQ time: {time.time() - llm_start:.2f}s")
+Explain the most likely root cause in 1-2 lines.
+"""
 
-        return response.content
+    response = llm.invoke(prompt)
 
-    except Exception as e:
-        print("❌ GROQ FAILED:", e)
-        return "Fallback: AI unavailable"
+    llm_time = round(time.time() - start_llm, 2)
+    total_time = round(time.time() - start_total, 2)
+
+    print(f"📊 RAG: {rag_time}s | LLM: {llm_time}s | TOTAL: {total_time}s")
+
+    return {
+        "root_cause": response.content,
+        "rag_time": rag_time,
+        "llm_time": llm_time,
+        "total_time": total_time
+    }
