@@ -1,5 +1,6 @@
 import os
 import time
+import json
 
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
@@ -12,6 +13,9 @@ VECTORSTORE = None
 RETRIEVER = None
 
 
+# -------------------------
+# BUILD VECTOR STORE
+# -------------------------
 def build_vectorstore():
     file_path = os.path.join(BASE_DIR, "ai_knowledge", "incidents.txt")
 
@@ -26,6 +30,9 @@ def build_vectorstore():
     return FAISS.from_documents(docs, embeddings)
 
 
+# -------------------------
+# INIT RAG
+# -------------------------
 def init_rag():
     global VECTORSTORE, RETRIEVER
 
@@ -37,6 +44,9 @@ def init_rag():
     print(f"✅ RAG initialized in {round(time.time() - start, 2)}s")
 
 
+# -------------------------
+# ANALYZE WITH LLM
+# -------------------------
 def analyze_with_llm(event):
     if RETRIEVER is None:
         raise Exception("RAG NOT INITIALIZED")
@@ -77,7 +87,13 @@ Retry Count: {event["retry_count"]}
 Delay Minutes: {event["delay_minutes"]}
 System: {event["system"]}
 
-Explain the most likely root cause in 1-2 lines.
+Return STRICT JSON only:
+
+{{
+  "root_cause": "short explanation",
+  "impact": "business impact",
+  "recommendation": "action to fix"
+}}
 """
 
     response = llm.invoke(prompt)
@@ -87,9 +103,27 @@ Explain the most likely root cause in 1-2 lines.
 
     print(f"📊 RAG: {rag_time}s | LLM: {llm_time}s | TOTAL: {total_time}s")
 
-    return {
-        "root_cause": response.content,
-        "rag_time": rag_time,
-        "llm_time": llm_time,
-        "total_time": total_time
-    }
+    # -------- SAFE PARSE ----------
+    try:
+        parsed = json.loads(response.content)
+
+        return {
+            "root_cause": parsed.get("root_cause", ""),
+            "impact": parsed.get("impact", ""),
+            "recommendation": parsed.get("recommendation", ""),
+            "rag_time": rag_time,
+            "llm_time": llm_time,
+            "total_time": total_time
+        }
+
+    except Exception as e:
+        print("⚠️ JSON PARSE FAILED:", e)
+
+        return {
+            "root_cause": response.content,
+            "impact": "Unknown impact",
+            "recommendation": "Manual investigation required",
+            "rag_time": rag_time,
+            "llm_time": llm_time,
+            "total_time": total_time
+        }

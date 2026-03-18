@@ -2,12 +2,13 @@ import sys
 import os
 import time
 import json
+import asyncio
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 print("🚀 APP STARTING...")
 
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, WebSocket
 from backend.database import get_connection
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 model = None
+active_connections = []
 
 
 # -------------------------
@@ -77,6 +79,26 @@ class Event(BaseModel):
 
 
 # -------------------------
+# WEBSOCKET
+# -------------------------
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except:
+        active_connections.remove(websocket)
+
+
+async def notify_clients():
+    for ws in active_connections:
+        await ws.send_text("new_event")
+
+
+# -------------------------
 # BACKGROUND AI TASK
 # -------------------------
 def run_ai(transaction_id, event_dict):
@@ -92,10 +114,8 @@ def run_ai(transaction_id, event_dict):
 
         result = analyze_with_llm(event_dict)
 
-        if isinstance(result, dict):
-            result_str = json.dumps(result)
-        else:
-            result_str = str(result)
+        # ✅ ALWAYS JSON
+        result_str = json.dumps(result)
 
         cursor.execute(
             """
@@ -112,19 +132,16 @@ def run_ai(transaction_id, event_dict):
     except Exception as e:
         print("❌ AI FAILED:", e)
 
-        try:
-            if cursor:
-                cursor.execute(
-                    """
-                    UPDATE exceptions
-                    SET root_cause=%s, ai_status='FAILED'
-                    WHERE transaction_id=%s
-                    """,
-                    (str(e), transaction_id)
-                )
-                conn.commit()
-        except Exception as db_err:
-            print("❌ DB UPDATE FAILED:", db_err)
+        if cursor:
+            cursor.execute(
+                """
+                UPDATE exceptions
+                SET root_cause=%s, ai_status='FAILED'
+                WHERE transaction_id=%s
+                """,
+                (str(e), transaction_id)
+            )
+            conn.commit()
 
     finally:
         if cursor:
@@ -163,18 +180,16 @@ def ingest_event(event: Event, bg: BackgroundTasks):
         violations = evaluate_rules(event_dict)
 
         is_anomaly = False
+
         if model:
-            try:
-                features = pd.DataFrame([{
-                    "retry_count": event.retry_count,
-                    "delay_minutes": event.delay_minutes
-                }])
+            features = pd.DataFrame([{
+                "retry_count": event.retry_count,
+                "delay_minutes": event.delay_minutes
+            }])
+            prediction = model.predict(features)
 
-                prediction = model.predict(features)
-                is_anomaly = bool(prediction[0] == -1)
-
-            except Exception as e:
-                print("❌ ML failed:", e)
+            # ✅ FIX numpy.bool_
+            is_anomaly = bool(prediction[0] == -1)
 
         if violations or is_anomaly:
 
@@ -200,12 +215,13 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
             conn.commit()
 
+            # 🔥 Background AI
             bg.add_task(run_ai, event.transaction_id, event_dict)
 
-        return {
-            "status": "queued",
-            "transaction_id": event.transaction_id
-        }
+            # 🔥 WebSocket notify
+            asyncio.create_task(notify_clients())
+
+        return {"status": "queued"}
 
     except Exception as e:
         print("❌ INGEST FAILED:", e)
@@ -219,11 +235,47 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
 
 # -------------------------
-# ✅ ADD THESE (CRITICAL)
+# SYSTEM HEALTH
 # -------------------------
+@app.get("/system-health")
+def system_health():
+    import time
 
+    try:
+        conn = get_connection()
+        conn.close()
+        db_status = "OK"
+    except:
+        db_status = "FAIL"
+
+    try:
+        start = time.time()
+        from langchain_groq import ChatGroq
+
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            api_key=os.getenv("GROQ_API_KEY")
+        )
+        llm.invoke("OK")
+
+        latency = round(time.time() - start, 2)
+        ai_status = "OK"
+    except:
+        ai_status = "FAIL"
+        latency = None
+
+    return {
+        "db": db_status,
+        "ai": ai_status,
+        "latency": latency
+    }
+
+
+# -------------------------
+# METRICS (FIXED 404)
+# -------------------------
 @app.get("/metrics")
-def get_metrics():
+def metrics():
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -246,16 +298,19 @@ def get_metrics():
     }
 
 
+# -------------------------
+# INSIGHTS
+# -------------------------
 @app.get("/insights")
-def get_insights():
+def insights():
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT transaction_id, rule_violation, root_cause, created_at, ai_status
+        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at
         FROM exceptions
         ORDER BY created_at DESC
-        LIMIT 10
+        LIMIT 20
     """)
 
     rows = cursor.fetchall()
@@ -268,35 +323,8 @@ def get_insights():
             "transaction_id": r[0],
             "rule_violation": r[1],
             "root_cause": r[2],
-            "created_at": r[3],
-            "ai_status": r[4]
+            "ai_status": r[3],
+            "created_at": r[4]
         }
         for r in rows
     ]
-
-
-# -------------------------
-# DEBUG
-# -------------------------
-@app.get("/ai-status/{tx_id}")
-def ai_status(tx_id: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT ai_status, root_cause FROM exceptions WHERE transaction_id=%s",
-        (tx_id,)
-    )
-
-    row = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-    if not row:
-        return {"error": "not found"}
-
-    return {
-        "status": row[0],
-        "root_cause": row[1]
-    }
