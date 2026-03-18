@@ -255,7 +255,13 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
         bg.add_task(process_ai, event.transaction_id, event_dict)
 
-    cursor.close()
-    conn.close()
+    try:
+        print("📡 Connecting to DB...")
+        conn = get_connection()
+        cursor = conn.cursor()
+        print("✅ DB connected")
+    except Exception as e:
+        print("❌ DB CONNECTION FAILED:", e)
+        return {"error": "DB connection failed"}
 
     return {"status": "queued", "transaction_id": event.transaction_id}
