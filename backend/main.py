@@ -165,7 +165,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
                 }])
 
                 prediction = model.predict(features)
-                is_anomaly = prediction[0] == -1
+                is_anomaly = bool(prediction[0] == -1)
 
             except Exception as e:
                 print("❌ ML failed:", e)
