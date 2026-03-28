@@ -67,7 +67,6 @@ def startup_event():
     except Exception as e:
         print("❌ RAG init failed:", e)
 
-    # 🔥 BACKGROUND WORKER
     def background_worker():
         while True:
             try:
@@ -126,7 +125,6 @@ def run_ai(transaction_id, event_dict):
         cursor = conn.cursor()
 
         result = analyze_with_llm(event_dict)
-
         result_str = json.dumps(result) if isinstance(result, dict) else str(result)
 
         cursor.execute(
@@ -146,21 +144,18 @@ def run_ai(transaction_id, event_dict):
     except Exception as e:
         print("❌ AI FAILED:", e)
 
-        try:
-            if cursor:
-                cursor.execute(
-                    """
-                    UPDATE exceptions
-                    SET root_cause=%s,
-                        ai_status='FAILED',
-                        updated_at=NOW()
-                    WHERE transaction_id=%s
-                    """,
-                    (str(e), transaction_id)
-                )
-                conn.commit()
-        except Exception as db_err:
-            print("❌ DB UPDATE FAILED:", db_err)
+        if cursor:
+            cursor.execute(
+                """
+                UPDATE exceptions
+                SET root_cause=%s,
+                    ai_status='FAILED',
+                    updated_at=NOW()
+                WHERE transaction_id=%s
+                """,
+                (str(e), transaction_id)
+            )
+            conn.commit()
 
     finally:
         if cursor:
@@ -195,7 +190,6 @@ def ingest_event(event: Event, bg: BackgroundTasks):
         cursor = conn.cursor()
 
         event_dict = event.dict()
-
         violations = evaluate_rules(event_dict)
 
         is_anomaly = False
@@ -234,7 +228,12 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
             bg.add_task(run_ai, event.transaction_id, event_dict)
 
-            asyncio.create_task(notify_clients())
+            # ✅ FIXED: SAFE ASYNC CALL
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(notify_clients())
+            except RuntimeError:
+                pass
 
         return {"status": "queued"}
 
@@ -250,7 +249,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
 
 # -------------------------
-# RETRY WORKER (FIXED)
+# RETRY WORKER
 # -------------------------
 def retry_pending_ai():
     print("🔄 Checking pending AI jobs...")
@@ -275,8 +274,6 @@ def retry_pending_ai():
             print(f"⚡ Retrying AI for {tx_id}")
 
             if not event_data:
-                print(f"⚠️ Skipping {tx_id} (no event_data)")
-
                 cursor.execute(
                     """
                     UPDATE exceptions
@@ -291,7 +288,6 @@ def retry_pending_ai():
                 continue
 
             event_dict = json.loads(event_data)
-
             run_ai(tx_id, event_dict)
 
         except Exception as e:
