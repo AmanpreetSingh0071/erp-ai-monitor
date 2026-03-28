@@ -228,8 +228,14 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
             conn.commit()
 
-            bg.add_task(run_ai, event.transaction_id, event_dict)
+            # 🔥 async AI
+            threading.Thread(
+                target=run_ai,
+                args=(event.transaction_id, event_dict),
+                daemon=True
+            ).start()
 
+            # 🔥 websocket notify
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(notify_clients())
@@ -309,8 +315,12 @@ def simulate_events():
 
             created.append(event["transaction_id"])
 
-            # 🔥 run AI immediately
-            run_ai(event["transaction_id"], event)
+            # 🔥 async AI execution
+            threading.Thread(
+                target=run_ai,
+                args=(event["transaction_id"], event),
+                daemon=True
+            ).start()
 
     conn.commit()
     cursor.close()
@@ -364,7 +374,12 @@ def retry_pending_ai():
                 continue
 
             event_dict = json.loads(event_data)
-            run_ai(tx_id, event_dict)
+
+            threading.Thread(
+                target=run_ai,
+                args=(tx_id, event_dict),
+                daemon=True
+            ).start()
 
         except Exception as e:
             print("❌ Retry failed:", e)
