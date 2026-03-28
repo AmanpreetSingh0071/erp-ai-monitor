@@ -67,7 +67,7 @@ def startup_event():
     except Exception as e:
         print("❌ RAG init failed:", e)
 
-    # 🔥 START RETRY WORKER
+    # 🔥 BACKGROUND WORKER
     def background_worker():
         while True:
             try:
@@ -250,7 +250,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
 
 # -------------------------
-# RETRY PENDING AI
+# RETRY WORKER (FIXED)
 # -------------------------
 def retry_pending_ai():
     print("🔄 Checking pending AI jobs...")
@@ -263,7 +263,8 @@ def retry_pending_ai():
         SELECT transaction_id, event_data
         FROM exceptions
         WHERE ai_status='PENDING'
-        ORDER BY
+        ORDER BY created_at ASC
+        LIMIT 5
         """
     )
 
@@ -272,8 +273,27 @@ def retry_pending_ai():
     for tx_id, event_data in rows:
         try:
             print(f"⚡ Retrying AI for {tx_id}")
+
+            if not event_data:
+                print(f"⚠️ Skipping {tx_id} (no event_data)")
+
+                cursor.execute(
+                    """
+                    UPDATE exceptions
+                    SET ai_status='FAILED',
+                        root_cause='Missing event_data',
+                        updated_at=NOW()
+                    WHERE transaction_id=%s
+                    """,
+                    (tx_id,)
+                )
+                conn.commit()
+                continue
+
             event_dict = json.loads(event_data)
+
             run_ai(tx_id, event_dict)
+
         except Exception as e:
             print("❌ Retry failed:", e)
 
