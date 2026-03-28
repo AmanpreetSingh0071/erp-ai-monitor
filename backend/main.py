@@ -263,8 +263,7 @@ def retry_pending_ai():
         SELECT transaction_id, event_data
         FROM exceptions
         WHERE ai_status='PENDING'
-        ORDER BY created_at ASC
-        LIMIT 5
+        ORDER BY
         """
     )
 
