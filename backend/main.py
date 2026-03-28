@@ -3,6 +3,7 @@ import os
 import time
 import json
 import asyncio
+import threading
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -66,6 +67,18 @@ def startup_event():
     except Exception as e:
         print("❌ RAG init failed:", e)
 
+    # 🔥 START RETRY WORKER
+    def background_worker():
+        while True:
+            try:
+                retry_pending_ai()
+            except Exception as e:
+                print("❌ Worker error:", e)
+
+            time.sleep(10)
+
+    threading.Thread(target=background_worker, daemon=True).start()
+
 
 # -------------------------
 # Schema
@@ -114,13 +127,14 @@ def run_ai(transaction_id, event_dict):
 
         result = analyze_with_llm(event_dict)
 
-        # ✅ ALWAYS JSON
-        result_str = json.dumps(result)
+        result_str = json.dumps(result) if isinstance(result, dict) else str(result)
 
         cursor.execute(
             """
             UPDATE exceptions
-            SET root_cause=%s, ai_status='DONE'
+            SET root_cause=%s,
+                ai_status='DONE',
+                updated_at=NOW()
             WHERE transaction_id=%s
             """,
             (result_str, transaction_id)
@@ -132,16 +146,21 @@ def run_ai(transaction_id, event_dict):
     except Exception as e:
         print("❌ AI FAILED:", e)
 
-        if cursor:
-            cursor.execute(
-                """
-                UPDATE exceptions
-                SET root_cause=%s, ai_status='FAILED'
-                WHERE transaction_id=%s
-                """,
-                (str(e), transaction_id)
-            )
-            conn.commit()
+        try:
+            if cursor:
+                cursor.execute(
+                    """
+                    UPDATE exceptions
+                    SET root_cause=%s,
+                        ai_status='FAILED',
+                        updated_at=NOW()
+                    WHERE transaction_id=%s
+                    """,
+                    (str(e), transaction_id)
+                )
+                conn.commit()
+        except Exception as db_err:
+            print("❌ DB UPDATE FAILED:", db_err)
 
     finally:
         if cursor:
@@ -187,8 +206,6 @@ def ingest_event(event: Event, bg: BackgroundTasks):
                 "delay_minutes": event.delay_minutes
             }])
             prediction = model.predict(features)
-
-            # ✅ FIX numpy.bool_
             is_anomaly = bool(prediction[0] == -1)
 
         if violations or is_anomaly:
@@ -215,10 +232,8 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
             conn.commit()
 
-            # 🔥 Background AI
             bg.add_task(run_ai, event.transaction_id, event_dict)
 
-            # 🔥 WebSocket notify
             asyncio.create_task(notify_clients())
 
         return {"status": "queued"}
@@ -235,12 +250,43 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
 
 # -------------------------
+# RETRY PENDING AI
+# -------------------------
+def retry_pending_ai():
+    print("🔄 Checking pending AI jobs...")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT transaction_id, event_data
+        FROM exceptions
+        WHERE ai_status='PENDING'
+        ORDER BY created_at ASC
+        LIMIT 5
+        """
+    )
+
+    rows = cursor.fetchall()
+
+    for tx_id, event_data in rows:
+        try:
+            print(f"⚡ Retrying AI for {tx_id}")
+            event_dict = json.loads(event_data)
+            run_ai(tx_id, event_dict)
+        except Exception as e:
+            print("❌ Retry failed:", e)
+
+    cursor.close()
+    conn.close()
+
+
+# -------------------------
 # SYSTEM HEALTH
 # -------------------------
 @app.get("/system-health")
 def system_health():
-    import time
-
     try:
         conn = get_connection()
         conn.close()
@@ -272,7 +318,7 @@ def system_health():
 
 
 # -------------------------
-# METRICS (FIXED 404)
+# METRICS
 # -------------------------
 @app.get("/metrics")
 def metrics():
@@ -307,7 +353,7 @@ def insights():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at
+        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at, updated_at
         FROM exceptions
         ORDER BY created_at DESC
         LIMIT 20
@@ -324,7 +370,8 @@ def insights():
             "rule_violation": r[1],
             "root_cause": r[2],
             "ai_status": r[3],
-            "created_at": r[4]
+            "created_at": r[4],
+            "updated_at": r[5]
         }
         for r in rows
     ]

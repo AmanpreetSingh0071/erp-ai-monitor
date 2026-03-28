@@ -100,7 +100,7 @@ def analyze_with_llm(event):
     )
 
     prompt = f"""
-You are an ERP monitoring AI system.
+You are an ERP monitoring AI system for enterprise integrations (Oracle NetSuite, SAP)
 
 Analyze the event and return ONLY valid JSON.
 
@@ -122,7 +122,7 @@ FORMAT:
 {{
   "root_cause": "Short precise cause (max 1 sentence)",
   "impact": "Business impact (SLA breach, delays, revenue impact)",
-  "recommendation": "Specific actionable fix (config/API/retry/logs)"
+  "recommendation": "Specific/Exact actionable fix (include config/API/retry/logs)"
 }}
 """
 
