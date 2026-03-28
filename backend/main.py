@@ -4,6 +4,7 @@ import time
 import json
 import asyncio
 import threading
+import random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -67,6 +68,7 @@ def startup_event():
     except Exception as e:
         print("❌ RAG init failed:", e)
 
+    # 🔥 BACKGROUND WORKER
     def background_worker():
         while True:
             try:
@@ -80,7 +82,7 @@ def startup_event():
 
 
 # -------------------------
-# Schema
+# SCHEMA
 # -------------------------
 class Event(BaseModel):
     transaction_id: str
@@ -111,7 +113,7 @@ async def notify_clients():
 
 
 # -------------------------
-# BACKGROUND AI TASK
+# AI PROCESS
 # -------------------------
 def run_ai(transaction_id, event_dict):
 
@@ -228,7 +230,6 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
             bg.add_task(run_ai, event.transaction_id, event_dict)
 
-            # ✅ FIXED: SAFE ASYNC CALL
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(notify_clients())
@@ -246,6 +247,81 @@ def ingest_event(event: Event, bg: BackgroundTasks):
             cursor.close()
         if conn:
             conn.close()
+
+
+# -------------------------
+# 🔥 SIMULATE TRAFFIC
+# -------------------------
+@app.post("/simulate")
+def simulate_events():
+
+    print("⚡ Simulating traffic...")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    systems = ["EDI", "NetSuite", "SAP"]
+    partners = ["Vendor-A", "Vendor-B", "Vendor-C"]
+
+    created = []
+
+    for _ in range(5):
+        event = {
+            "transaction_id": f"TX{random.randint(10000,99999)}",
+            "system": random.choice(systems),
+            "partner": random.choice(partners),
+            "retry_count": random.randint(0, 15),
+            "delay_minutes": random.randint(0, 90)
+        }
+
+        violations = evaluate_rules(event)
+
+        is_anomaly = False
+        if model:
+            features = pd.DataFrame([{
+                "retry_count": event["retry_count"],
+                "delay_minutes": event["delay_minutes"]
+            }])
+            prediction = model.predict(features)
+            is_anomaly = bool(prediction[0] == -1)
+
+        if violations or is_anomaly:
+
+            cursor.execute(
+                """
+                INSERT INTO exceptions (
+                    transaction_id,
+                    rule_violation,
+                    event_data,
+                    anomaly,
+                    ai_status
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    event["transaction_id"],
+                    violations[0] if violations else "ML_ANOMALY",
+                    json.dumps(event),
+                    is_anomaly,
+                    "PENDING"
+                )
+            )
+
+            created.append(event["transaction_id"])
+
+            # 🔥 run AI immediately
+            run_ai(event["transaction_id"], event)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print(f"✅ Created {len(created)} events")
+
+    return {
+        "status": "simulated",
+        "events_created": created
+    }
 
 
 # -------------------------

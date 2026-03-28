@@ -2,25 +2,25 @@ import random
 import time
 import requests
 
-API_URL = "http://localhost:8000/event"
+API_URL = "https://erp-ai-monitor.onrender.com/ingest"
 
 systems = ["EDI", "NetSuite", "SAP"]
 partners = ["Vendor-A", "Vendor-B", "Vendor-C"]
 
-while True:
+for _ in range(10):
 
     event = {
-        "transaction_id": f"TX{random.randint(1000,9999)}",
+        "transaction_id": f"TX{random.randint(1000,99999)}",
         "system": random.choice(systems),
         "partner": random.choice(partners),
-        "retry_count": random.randint(0,10),
-        "delay_minutes": random.randint(0,60)
+        "retry_count": random.randint(0,15),
+        "delay_minutes": random.randint(0,90)
     }
 
     try:
         response = requests.post(API_URL, json=event)
-        print("Sent event:", event)
+        print("Sent:", event, "| Status:", response.status_code)
     except Exception as e:
         print("Error sending event:", e)
 
-    time.sleep(1)
+    time.sleep(2)
