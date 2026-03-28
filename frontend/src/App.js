@@ -9,6 +9,7 @@ function App() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // -------------------------
   // FETCH DATA
@@ -23,13 +24,13 @@ function App() {
 
       setMetrics(m.data);
 
-      // ✅ SORT + LIMIT
-      const sorted = i.data.sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-      ).slice(0, 10);
+      const sorted = i.data
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 10);
 
       setInsights(sorted);
       setHealth(h.data);
+      setLastUpdated(new Date());
       setError(null);
     } catch (err) {
       console.error(err);
@@ -71,20 +72,24 @@ function App() {
   return (
     <div style={container}>
       <h1>ERP AI Monitoring</h1>
-      <p style={subtitle}>
-        Real-time anomaly detection with AI-driven root cause analysis
-      </p>
 
-      {/* HEADER STATS */}
-      <div style={{ marginBottom: 20 }}>
-        <strong>Active Issues:</strong> {insights.length}
+      <div style={live}>
+        ● Live Monitoring Active
+      </div>
+
+      <div style={subtitle}>
+        Real-time anomaly detection with AI-driven root cause analysis
+      </div>
+
+      <div style={lastUpdate}>
+        Last updated: {lastUpdated?.toLocaleTimeString()}
       </div>
 
       {/* SYSTEM HEALTH */}
       <Section title="System Health">
         <div style={grid}>
-          <Card title="Database" value={health?.db} status />
-          <Card title="AI Engine" value={health?.ai} status />
+          <Card title="Database" value={health?.db} />
+          <Card title="AI Engine" value={health?.ai} />
           <Card title="Latency" value={`${health?.latency || 0}s`} />
         </div>
       </Section>
@@ -138,15 +143,15 @@ function App() {
                 {/* CONTENT */}
                 {parsed && item.ai_status === "DONE" ? (
                   <>
-                    <Block title="Root Cause" style={blue}>
+                    <Block title="🔍 Root Cause" style={blue}>
                       {parsed.root_cause}
                     </Block>
 
-                    <Block title="Impact" style={orange}>
+                    <Block title="⚠️ Impact" style={orange}>
                       {parsed.impact || "Potential SLA breach and delays"}
                     </Block>
 
-                    <Block title="Recommended Fix" style={green}>
+                    <Block title="🛠 Recommended Fix" style={green}>
                       {parsed.recommendation || "Check logs and retry config"}
                     </Block>
                   </>
@@ -238,8 +243,20 @@ const container = {
   background: "#f8fafc"
 };
 
+const live = {
+  color: "#16a34a",
+  fontWeight: "bold",
+  marginBottom: 5
+};
+
 const subtitle = {
   color: "#666",
+  marginBottom: 5
+};
+
+const lastUpdate = {
+  fontSize: "12px",
+  color: "#888",
   marginBottom: 20
 };
 
@@ -267,7 +284,9 @@ const insightCard = (violation) => ({
     violation === "SLA_DELAY" ? "#ef4444" :
     violation === "HIGH_RETRY" ? "#f59e0b" :
     "#3b82f6"
-  }`
+  }`,
+  transition: "0.2s",
+  cursor: "pointer"
 });
 
 const rowBetween = {

@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import re
 
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
@@ -45,6 +46,28 @@ def init_rag():
 
 
 # -------------------------
+# CLEAN JSON FROM LLM OUTPUT
+# -------------------------
+def extract_json(text):
+    try:
+        # remove markdown if present
+        text = text.strip()
+        text = re.sub(r"```json|```", "", text).strip()
+
+        # find JSON block
+        start = text.find("{")
+        end = text.rfind("}") + 1
+
+        if start != -1 and end != -1:
+            return json.loads(text[start:end])
+
+    except Exception as e:
+        print("⚠️ JSON extraction failed:", e)
+
+    return None
+
+
+# -------------------------
 # ANALYZE WITH LLM
 # -------------------------
 def analyze_with_llm(event):
@@ -77,7 +100,9 @@ def analyze_with_llm(event):
     )
 
     prompt = f"""
-You are an ERP monitoring AI.
+You are an ERP monitoring AI system.
+
+Analyze the event and return ONLY valid JSON.
 
 Context:
 {context}
@@ -87,12 +112,17 @@ Retry Count: {event["retry_count"]}
 Delay Minutes: {event["delay_minutes"]}
 System: {event["system"]}
 
-Return STRICT JSON only:
+STRICT RULES:
+- Output ONLY JSON
+- No explanations
+- No markdown
+- No extra text
 
+FORMAT:
 {{
-  "root_cause": "short explanation",
-  "impact": "business impact",
-  "recommendation": "action to fix"
+  "root_cause": "Short precise cause (max 1 sentence)",
+  "impact": "Business impact (SLA breach, delays, revenue impact)",
+  "recommendation": "Specific actionable fix (config/API/retry/logs)"
 }}
 """
 
@@ -103,27 +133,30 @@ Return STRICT JSON only:
 
     print(f"📊 RAG: {rag_time}s | LLM: {llm_time}s | TOTAL: {total_time}s")
 
+    raw_output = response.content
+    print("🧠 RAW LLM OUTPUT:", raw_output)
+
     # -------- SAFE PARSE ----------
-    try:
-        parsed = json.loads(response.content)
+    parsed = extract_json(raw_output)
 
+    if parsed:
         return {
-            "root_cause": parsed.get("root_cause", ""),
-            "impact": parsed.get("impact", ""),
-            "recommendation": parsed.get("recommendation", ""),
+            "root_cause": parsed.get("root_cause", "").strip(),
+            "impact": parsed.get("impact", "").strip(),
+            "recommendation": parsed.get("recommendation", "").strip(),
             "rag_time": rag_time,
             "llm_time": llm_time,
             "total_time": total_time
         }
 
-    except Exception as e:
-        print("⚠️ JSON PARSE FAILED:", e)
+    # -------- FALLBACK ----------
+    print("⚠️ Using fallback response")
 
-        return {
-            "root_cause": response.content,
-            "impact": "Unknown impact",
-            "recommendation": "Manual investigation required",
-            "rag_time": rag_time,
-            "llm_time": llm_time,
-            "total_time": total_time
-        }
+    return {
+        "root_cause": raw_output.strip(),
+        "impact": "Potential SLA breach or system delay",
+        "recommendation": "Check logs, retry configuration, and API health",
+        "rag_time": rag_time,
+        "llm_time": llm_time,
+        "total_time": total_time
+    }
