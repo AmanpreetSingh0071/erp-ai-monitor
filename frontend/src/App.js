@@ -47,7 +47,7 @@ function App() {
   }, []);
 
   // -------------------------
-  // WEBSOCKET (NO RELOAD)
+  // WEBSOCKET
   // -------------------------
   useEffect(() => {
     const ws = new WebSocket("wss://erp-ai-monitor.onrender.com/ws");
@@ -64,6 +64,20 @@ function App() {
   }, []);
 
   // -------------------------
+  // 🔥 SIMULATE TRAFFIC
+  // -------------------------
+  const simulateTraffic = async () => {
+    try {
+      await axios.post(`${API}/simulate`);
+      alert("🚀 Traffic simulated");
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Simulation failed");
+    }
+  };
+
+  // -------------------------
   // STATES
   // -------------------------
   if (loading) return <Centered>Loading dashboard...</Centered>;
@@ -72,6 +86,11 @@ function App() {
   return (
     <div style={container}>
       <h1>ERP AI Monitoring</h1>
+
+      {/* 🔥 BUTTON */}
+      <button onClick={simulateTraffic} style={simulateBtn}>
+        ⚡ Simulate Traffic
+      </button>
 
       <div style={live}>
         ● Live Monitoring Active
@@ -118,29 +137,22 @@ function App() {
             }
 
             return (
-              <div
-                key={i}
-                style={insightCard(item.rule_violation)}
-              >
-                {/* HEADER */}
+              <div key={i} style={insightCard(item.rule_violation)}>
                 <div style={rowBetween}>
                   <strong>{item.transaction_id}</strong>
                   <StatusBadge status={item.ai_status} />
                 </div>
 
-                {/* TAG */}
                 <div style={{ marginTop: 8 }}>
                   <span style={tag}>{item.rule_violation}</span>
                 </div>
 
-                {/* PENDING */}
                 {item.ai_status === "PENDING" && (
                   <div style={pending}>
                     AI is analyzing this event...
                   </div>
                 )}
 
-                {/* CONTENT */}
                 {parsed && item.ai_status === "DONE" ? (
                   <>
                     <Block title="🔍 Root Cause" style={blue}>
@@ -148,18 +160,17 @@ function App() {
                     </Block>
 
                     <Block title="⚠️ Impact" style={orange}>
-                      {parsed.impact || "Potential SLA breach and delays"}
+                      {parsed.impact}
                     </Block>
 
                     <Block title="🛠 Recommended Fix" style={green}>
-                      {parsed.recommendation || "Check logs and retry config"}
+                      {parsed.recommendation}
                     </Block>
                   </>
                 ) : !parsed && item.ai_status === "DONE" ? (
                   <p>{item.root_cause}</p>
                 ) : null}
 
-                {/* TIME */}
                 <div style={time}>
                   {new Date(item.created_at).toLocaleString()}
                 </div>
@@ -243,6 +254,17 @@ const container = {
   background: "#f8fafc"
 };
 
+const simulateBtn = {
+  marginTop: "15px",
+  padding: "10px 20px",
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "bold"
+};
+
 const live = {
   color: "#16a34a",
   fontWeight: "bold",
@@ -284,9 +306,7 @@ const insightCard = (violation) => ({
     violation === "SLA_DELAY" ? "#ef4444" :
     violation === "HIGH_RETRY" ? "#f59e0b" :
     "#3b82f6"
-  }`,
-  transition: "0.2s",
-  cursor: "pointer"
+  }`
 });
 
 const rowBetween = {
