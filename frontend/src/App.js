@@ -22,7 +22,13 @@ function App() {
       ]);
 
       setMetrics(m.data);
-      setInsights(i.data);
+
+      // ✅ SORT + LIMIT
+      const sorted = i.data.sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      ).slice(0, 10);
+
+      setInsights(sorted);
       setHealth(h.data);
       setError(null);
     } catch (err) {
@@ -46,11 +52,11 @@ function App() {
     const ws = new WebSocket("wss://erp-ai-monitor.onrender.com/ws");
 
     ws.onmessage = () => {
-      fetchData(); // ✅ only refresh data, not whole page
+      fetchData();
     };
 
     ws.onerror = () => {
-      console.log("WebSocket failed, fallback to polling");
+      console.log("WebSocket fallback to polling");
     };
 
     return () => ws.close();
@@ -64,10 +70,15 @@ function App() {
 
   return (
     <div style={container}>
-      <h1 style={title}>ERP AI Monitoring</h1>
+      <h1>ERP AI Monitoring</h1>
       <p style={subtitle}>
         Real-time anomaly detection with AI-driven root cause analysis
       </p>
+
+      {/* HEADER STATS */}
+      <div style={{ marginBottom: 20 }}>
+        <strong>Active Issues:</strong> {insights.length}
+      </div>
 
       {/* SYSTEM HEALTH */}
       <Section title="System Health">
@@ -102,7 +113,10 @@ function App() {
             }
 
             return (
-              <div key={i} style={insightCard}>
+              <div
+                key={i}
+                style={insightCard(item.rule_violation)}
+              >
                 {/* HEADER */}
                 <div style={rowBetween}>
                   <strong>{item.transaction_id}</strong>
@@ -114,24 +128,31 @@ function App() {
                   <span style={tag}>{item.rule_violation}</span>
                 </div>
 
+                {/* PENDING */}
+                {item.ai_status === "PENDING" && (
+                  <div style={pending}>
+                    AI is analyzing this event...
+                  </div>
+                )}
+
                 {/* CONTENT */}
-                {parsed ? (
+                {parsed && item.ai_status === "DONE" ? (
                   <>
                     <Block title="Root Cause" style={blue}>
                       {parsed.root_cause}
                     </Block>
 
                     <Block title="Impact" style={orange}>
-                      {parsed.impact}
+                      {parsed.impact || "Potential SLA breach and delays"}
                     </Block>
 
                     <Block title="Recommended Fix" style={green}>
-                      {parsed.recommendation}
+                      {parsed.recommendation || "Check logs and retry config"}
                     </Block>
                   </>
-                ) : (
+                ) : !parsed && item.ai_status === "DONE" ? (
                   <p>{item.root_cause}</p>
-                )}
+                ) : null}
 
                 {/* TIME */}
                 <div style={time}>
@@ -149,7 +170,7 @@ function App() {
 // -------------------------
 // COMPONENTS
 // -------------------------
-function Card({ title, value, status }) {
+function Card({ title, value }) {
   const color =
     value === "OK" ? "#16a34a" :
     value === "FAIL" ? "#dc2626" : "#111";
@@ -200,13 +221,7 @@ function Block({ title, children, style }) {
 
 function Centered({ children }) {
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      height: "100vh",
-      fontSize: 20
-    }}>
+    <div style={centered}>
       {children}
     </div>
   );
@@ -223,13 +238,9 @@ const container = {
   background: "#f8fafc"
 };
 
-const title = {
-  marginBottom: 5
-};
-
 const subtitle = {
   color: "#666",
-  marginBottom: 30
+  marginBottom: 20
 };
 
 const grid = {
@@ -246,13 +257,18 @@ const card = {
   boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
 };
 
-const insightCard = {
+const insightCard = (violation) => ({
   background: "white",
   padding: "16px",
   marginTop: "15px",
   borderRadius: "12px",
-  boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
-};
+  boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+  borderLeft: `6px solid ${
+    violation === "SLA_DELAY" ? "#ef4444" :
+    violation === "HIGH_RETRY" ? "#f59e0b" :
+    "#3b82f6"
+  }`
+});
 
 const rowBetween = {
   display: "flex",
@@ -265,6 +281,12 @@ const tag = {
   padding: "4px 10px",
   borderRadius: "6px",
   fontSize: "12px"
+};
+
+const pending = {
+  marginTop: 10,
+  fontStyle: "italic",
+  color: "#999"
 };
 
 const block = {
@@ -281,6 +303,14 @@ const time = {
   fontSize: "12px",
   color: "#666",
   marginTop: "10px"
+};
+
+const centered = {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  height: "100vh",
+  fontSize: "20px"
 };
 
 export default App;
