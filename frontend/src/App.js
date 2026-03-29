@@ -47,6 +47,25 @@ function App() {
   }, []);
 
   // -------------------------
+  // 🔥 AUTO WAKE BACKEND
+  // -------------------------
+  useEffect(() => {
+    const wakeUp = async () => {
+      try {
+        await fetch(`${API}/health`);
+        console.log("Backend awake");
+      } catch {
+        console.log("Backend sleeping...");
+      }
+    };
+
+    wakeUp();
+
+    const interval = setInterval(wakeUp, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // -------------------------
   // WEBSOCKET
   // -------------------------
   useEffect(() => {
@@ -62,6 +81,18 @@ function App() {
 
     return () => ws.close();
   }, []);
+
+  // -------------------------
+  // 🚀 START BACKEND
+  // -------------------------
+  const startBackend = async () => {
+    try {
+      await axios.get(`${API}/health`);
+      alert("Backend triggered!");
+    } catch {
+      alert("Backend might be sleeping...");
+    }
+  };
 
   // -------------------------
   // 🔥 SIMULATE TRAFFIC
@@ -87,10 +118,19 @@ function App() {
     <div style={container}>
       <h1>ERP AI Monitoring</h1>
 
-      {/* 🔥 BUTTON */}
-      <button onClick={simulateTraffic} style={simulateBtn}>
-        ⚡ Simulate Traffic
-      </button>
+      {/* 🔥 BUTTONS */}
+      <div style={{ marginTop: 15 }}>
+        <button onClick={startBackend} style={button}>
+          🚀 Start Backend
+        </button>
+
+        <button
+          onClick={simulateTraffic}
+          style={{ ...simulateBtn, marginLeft: 10 }}
+        >
+          ⚡ Simulate Traffic
+        </button>
+      </div>
 
       <div style={live}>
         ● Live Monitoring Active
@@ -254,8 +294,17 @@ const container = {
   background: "#f8fafc"
 };
 
+const button = {
+  padding: "10px 20px",
+  background: "#16a34a",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "bold"
+};
+
 const simulateBtn = {
-  marginTop: "15px",
   padding: "10px 20px",
   background: "#2563eb",
   color: "white",
