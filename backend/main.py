@@ -380,12 +380,12 @@ def metrics():
     high_retry = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='SLA_DELAY'")
-    high_retry = cursor.fetchone()[0]
+    sla_delay = cursor.fetchone()[0]
 
     cursor.close()
     conn.close()
 
-    return {"total_violations": total,"HIGH_RETRY":HIGH_RETRY,"SLA_DELAY":SLA_DELAY}
+    return {"total_violations": total,"high_retry":high_retry,"sla_delay":sla_delay}
 
 
 # -------------------------
