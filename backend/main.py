@@ -385,7 +385,7 @@ def metrics():
     cursor.close()
     conn.close()
 
-    return {"total_violations": total,"high_retry":high_retry,"sla_delay":sla_delay}
+    return {"total_violations": total,"HIGH_RETRY":HIGH_RETRY,"SLA_DELAY":SLA_DELAY}
 
 
 # -------------------------
