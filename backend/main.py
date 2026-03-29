@@ -376,10 +376,16 @@ def metrics():
     cursor.execute("SELECT COUNT(*) FROM exceptions")
     total = cursor.fetchone()[0]
 
+    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='HIGH_RETRY'")
+    high_retry = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='SLA_DELAY'")
+    high_retry = cursor.fetchone()[0]
+
     cursor.close()
     conn.close()
 
-    return {"total_violations": total}
+    return {"total_violations": total,"high_retry":high_retry,"sla_delay":sla_delay}
 
 
 # -------------------------
