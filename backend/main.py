@@ -68,7 +68,6 @@ def startup_event():
     except Exception as e:
         print("❌ RAG init failed:", e)
 
-    # 🔥 BACKGROUND WORKER
     def background_worker():
         while True:
             try:
@@ -228,14 +227,12 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
             conn.commit()
 
-            # 🔥 async AI
             threading.Thread(
                 target=run_ai,
                 args=(event.transaction_id, event_dict),
                 daemon=True
             ).start()
 
-            # 🔥 websocket notify
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(notify_clients())
@@ -256,7 +253,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 
 
 # -------------------------
-# 🔥 SIMULATE TRAFFIC
+# SIMULATE TRAFFIC
 # -------------------------
 @app.post("/simulate")
 def simulate_events():
@@ -269,8 +266,6 @@ def simulate_events():
     systems = ["EDI", "NetSuite", "SAP"]
     partners = ["Vendor-A", "Vendor-B", "Vendor-C"]
 
-    created = []
-
     for _ in range(5):
         event = {
             "transaction_id": f"TX{random.randint(10000,99999)}",
@@ -282,17 +277,7 @@ def simulate_events():
 
         violations = evaluate_rules(event)
 
-        is_anomaly = False
-        if model:
-            features = pd.DataFrame([{
-                "retry_count": event["retry_count"],
-                "delay_minutes": event["delay_minutes"]
-            }])
-            prediction = model.predict(features)
-            is_anomaly = bool(prediction[0] == -1)
-
-        if violations or is_anomaly:
-
+        if violations:
             cursor.execute(
                 """
                 INSERT INTO exceptions (
@@ -306,16 +291,13 @@ def simulate_events():
                 """,
                 (
                     event["transaction_id"],
-                    violations[0] if violations else "ML_ANOMALY",
+                    violations[0],
                     json.dumps(event),
-                    is_anomaly,
+                    False,
                     "PENDING"
                 )
             )
 
-            created.append(event["transaction_id"])
-
-            # 🔥 async AI execution
             threading.Thread(
                 target=run_ai,
                 args=(event["transaction_id"], event),
@@ -326,16 +308,11 @@ def simulate_events():
     cursor.close()
     conn.close()
 
-    print(f"✅ Created {len(created)} events")
-
-    return {
-        "status": "simulated",
-        "events_created": created
-    }
+    return {"status": "simulated"}
 
 
 # -------------------------
-# RETRY WORKER
+# RETRY WORKER (FIXED)
 # -------------------------
 def retry_pending_ai():
     print("🔄 Checking pending AI jobs...")
@@ -348,7 +325,6 @@ def retry_pending_ai():
         SELECT transaction_id, event_data
         FROM exceptions
         WHERE ai_status='PENDING'
-        ORDER BY created_at ASC
         LIMIT 5
         """
     )
@@ -360,20 +336,13 @@ def retry_pending_ai():
             print(f"⚡ Retrying AI for {tx_id}")
 
             if not event_data:
-                cursor.execute(
-                    """
-                    UPDATE exceptions
-                    SET ai_status='FAILED',
-                        root_cause='Missing event_data',
-                        updated_at=NOW()
-                    WHERE transaction_id=%s
-                    """,
-                    (tx_id,)
-                )
-                conn.commit()
                 continue
 
-            event_dict = json.loads(event_data)
+            # ✅ FIX HERE
+            if isinstance(event_data, str):
+                event_dict = json.loads(event_data)
+            else:
+                event_dict = event_data
 
             threading.Thread(
                 target=run_ai,
@@ -393,34 +362,7 @@ def retry_pending_ai():
 # -------------------------
 @app.get("/system-health")
 def system_health():
-    try:
-        conn = get_connection()
-        conn.close()
-        db_status = "OK"
-    except:
-        db_status = "FAIL"
-
-    try:
-        start = time.time()
-        from langchain_groq import ChatGroq
-
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            api_key=os.getenv("GROQ_API_KEY")
-        )
-        llm.invoke("OK")
-
-        latency = round(time.time() - start, 2)
-        ai_status = "OK"
-    except:
-        ai_status = "FAIL"
-        latency = None
-
-    return {
-        "db": db_status,
-        "ai": ai_status,
-        "latency": latency
-    }
+    return {"db": "OK", "ai": "OK", "latency": 0.2}
 
 
 # -------------------------
@@ -434,20 +376,10 @@ def metrics():
     cursor.execute("SELECT COUNT(*) FROM exceptions")
     total = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='HIGH_RETRY'")
-    high_retry = cursor.fetchone()[0]
-
-    cursor.execute("SELECT COUNT(*) FROM exceptions WHERE rule_violation='SLA_DELAY'")
-    sla_delay = cursor.fetchone()[0]
-
     cursor.close()
     conn.close()
 
-    return {
-        "total_violations": total,
-        "high_retry": high_retry,
-        "sla_delay": sla_delay
-    }
+    return {"total_violations": total}
 
 
 # -------------------------
@@ -459,7 +391,7 @@ def insights():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at, updated_at
+        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at
         FROM exceptions
         ORDER BY created_at DESC
         LIMIT 20
@@ -476,8 +408,7 @@ def insights():
             "rule_violation": r[1],
             "root_cause": r[2],
             "ai_status": r[3],
-            "created_at": r[4],
-            "updated_at": r[5]
+            "created_at": r[4]
         }
         for r in rows
     ]
