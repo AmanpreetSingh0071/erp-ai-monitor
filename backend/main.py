@@ -69,13 +69,18 @@ def startup_event():
         print("❌ RAG init failed:", e)
 
     def background_worker():
+        retry_delay = 10
+
         while True:
             try:
                 retry_pending_ai()
+                retry_delay = 10
+
             except Exception as e:
                 print("❌ Worker error:", e)
+                retry_delay = min(retry_delay * 2, 300)  # exponential backoff (max 5 min)
 
-            time.sleep(10)
+            time.sleep(retry_delay)
 
     threading.Thread(target=background_worker, daemon=True).start()
 
