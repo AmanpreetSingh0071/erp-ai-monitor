@@ -5,7 +5,7 @@ import re
 
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import FakeEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_groq import ChatGroq
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -26,7 +26,7 @@ def build_vectorstore():
     loader = TextLoader(file_path)
     docs = loader.load()
 
-    embeddings = FakeEmbeddings(size=384)
+    embeddings = HuggingFaceInferenceAPIEmbeddings(api_key=os.getenv("HF_API_KEY"),model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     return FAISS.from_documents(docs, embeddings)
 
