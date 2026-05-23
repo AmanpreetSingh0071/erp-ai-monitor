@@ -1,9 +1,135 @@
-High retry count with large delay usually indicates partner API outage.
+=== EDI INTEGRATION FAILURES ===
 
-Transactions delayed above 45 minutes typically mean ERP queue backlog.
+INCIDENT: EDI 850 Purchase Order Processing Failure
+Symptoms: High retry count (5+), delay exceeding 30 minutes, system = EDI
+Root Cause: Malformed EDI 850 segment — missing mandatory ISA or GS envelope header causing parser rejection at the middleware layer.
+Impact: Purchase orders not created in NetSuite, supplier fulfilment delayed, potential SLA breach with trading partner.
+Resolution: Validate EDI file structure against X12 schema, check ISA13 control number uniqueness, reprocess corrected file through SPS Commerce mapping layer.
 
-Retry spikes from SAP outbound systems often indicate middleware integration failure.
+INCIDENT: EDI 856 Advance Ship Notice Timeout
+Symptoms: Retry count 3-6, delay 20-45 minutes, system = EDI
+Root Cause: 856 ASN payload exceeds middleware processing timeout — typically occurs with large shipments containing 500+ line items.
+Impact: Warehouse receiving delayed, inventory counts inaccurate, 3PL pick/pack/ship workflow stalled.
+Resolution: Split large ASN payloads into batches of 100 line items, increase middleware timeout threshold, implement chunked processing in Celigo flow.
 
-Zero delay anomalies may indicate ingestion timestamp errors.
+INCIDENT: EDI 810 Invoice Reconciliation Failure
+Symptoms: Retry count 2-4, delay 15-30 minutes, system = EDI
+Root Cause: Price mismatch between EDI 810 invoice and NetSuite purchase order — vendor unit price differs from agreed contract price by more than tolerance threshold.
+Impact: Accounts payable workflow blocked, vendor payment delayed, month-end close impacted.
+Resolution: Check vendor price list in NetSuite, verify PO price vs invoice price, escalate to procurement team for manual approval if variance exceeds 5%.
 
-If retry count exceeds 7 and delay exceeds 40 minutes, the most common cause is partner system downtime or API timeout.
+INCIDENT: EDI 855 Purchase Order Acknowledgement Missing
+Symptoms: Retry count 1-3, delay 10-20 minutes, system = EDI
+Root Cause: Trading partner failed to send 855 acknowledgement within SLA window — partner system may be offline or queue backed up.
+Impact: Order confirmation status unknown, risk of duplicate order creation, supply chain visibility gap.
+Resolution: Check trading partner system status via SPS Commerce portal, trigger manual acknowledgement request, implement fallback timeout logic.
+
+INCIDENT: EDIFACT ORDERS Message Parsing Error
+Symptoms: Retry count 4-8, delay 25-50 minutes, system = EDI
+Root Cause: EDIFACT ORDERS message uses non-standard character set or segment terminator — common with European trading partners using regional encodings.
+Impact: Order not ingested into NetSuite, European supply chain disrupted.
+Resolution: Configure correct character encoding in mapping layer, validate UNB envelope settings, check CONTRL acknowledgement for error codes.
+
+=== NETSUITE INTEGRATION FAILURES ===
+
+INCIDENT: SuiteTalk REST API Rate Limit Exceeded
+Symptoms: Retry count 5-10, delay 30-60 minutes, system = NetSuite
+Root Cause: Concurrent API requests exceeded NetSuite REST API concurrency limit (typically 10 concurrent requests per account) — occurs during batch processing or peak load periods.
+Impact: Integration queue backlog, transactions not processed, downstream reporting delayed.
+Resolution: Implement exponential backoff retry logic, add request queuing, reduce concurrency to 5 parallel requests, schedule batch jobs during off-peak hours.
+
+INCIDENT: SuiteScript Scheduled Script Governance Failure
+Symptoms: Retry count 1-3, delay 5-15 minutes, system = NetSuite
+Root Cause: Scheduled SuiteScript 2.x script exceeded governance unit limit (10,000 units per script execution) during large data processing run.
+Impact: Incomplete data processing, records left in intermediate state, potential data integrity issues.
+Resolution: Implement script rescheduling logic using N/task module, split processing into smaller batches, add governance unit monitoring.
+
+INCIDENT: NetSuite Saved Search Timeout
+Symptoms: Retry count 1-2, delay 10-25 minutes, system = NetSuite
+Root Cause: Complex saved search with multiple joins across large datasets exceeding execution timeout — typically triggered by unbounded date range queries.
+Impact: Reporting and analytics unavailable, dashboard KPIs not refreshed.
+Resolution: Add date range filters to saved search criteria, optimise join conditions, consider migrating complex reports to SuiteAnalytics Connect.
+
+INCIDENT: Duplicate Sales Order Creation
+Symptoms: Retry count 0, delay 0, system = NetSuite
+Root Cause: Missing idempotency controls in integration flow — EDI 850 reprocessed without external ID deduplication check, creating duplicate sales orders.
+Impact: Inventory oversell, duplicate fulfilment, revenue recognition errors, customer overcharge risk.
+Resolution: Implement external ID check before record creation, add idempotency key validation in Celigo flow, run deduplication script to identify and merge duplicate orders.
+
+INCIDENT: Revenue Recognition Schedule Error
+Symptoms: Retry count 2-4, delay 15-30 minutes, system = NetSuite
+Root Cause: Revenue recognition rule misconfiguration — recognition start date set to transaction date instead of delivery date, causing premature revenue posting.
+Impact: Financial reporting inaccurate, compliance risk, period-end close delayed.
+Resolution: Review and correct revenue recognition template, rerun recognition schedule for affected transactions, notify finance team for manual journal adjustment.
+
+INCIDENT: Multi-Currency Conversion Failure
+Symptoms: Retry count 3-5, delay 20-40 minutes, system = NetSuite
+Root Cause: Currency exchange rate not updated in NetSuite for transaction currency — rate feed from external provider failed, causing conversion to use stale rate.
+Impact: Foreign currency transactions posted at incorrect value, financial statements inaccurate.
+Resolution: Manually update exchange rates, reprocess affected transactions, investigate rate feed connectivity, implement rate feed monitoring alert.
+
+=== 3PL AND WMS INTEGRATION FAILURES ===
+
+INCIDENT: 3PL Warehouse Webhook Timeout
+Symptoms: Retry count 4-7, delay 30-60 minutes, system = 3PL
+Root Cause: 3PL warehouse management system webhook endpoint returning HTTP 504 gateway timeout — WMS under heavy load during peak fulfilment period.
+Impact: Shipment confirmation not received by NetSuite, inventory not decremented, customer order status not updated.
+Resolution: Implement async webhook processing with queue, add retry with exponential backoff, contact 3PL to investigate WMS performance during peak periods.
+
+INCIDENT: Pick Pack Ship Status Mismatch
+Symptoms: Retry count 2-4, delay 10-20 minutes, system = 3PL
+Root Cause: Fulfilment status message from 3PL contains quantity discrepancy — items picked do not match order quantity due to warehouse stock variance.
+Impact: Partial shipment not correctly reflected in NetSuite, customer invoice amount incorrect, inventory count inaccurate.
+Resolution: Trigger stock reconciliation at 3PL, update NetSuite fulfilment with actual shipped quantity, notify customer service of partial shipment.
+
+INCIDENT: WMS Inventory Sync Failure
+Symptoms: Retry count 3-6, delay 20-45 minutes, system = 3PL
+Root Cause: Inventory adjustment message from WMS rejected by NetSuite due to bin location not existing in NetSuite location setup.
+Impact: Inventory levels out of sync between WMS and NetSuite, inaccurate stock availability, potential oversell.
+Resolution: Create missing bin locations in NetSuite, reprocess rejected inventory adjustments, implement location validation before sync.
+
+=== CELIGO IPAAS FAILURES ===
+
+INCIDENT: Celigo Flow HTTP 429 Rate Limit
+Symptoms: Retry count 5-10, delay 30-60 minutes, system = Celigo
+Root Cause: Celigo integration flow hitting downstream API rate limits — too many concurrent exports triggering HTTP 429 Too Many Requests from target system.
+Impact: Data export delayed, integration queue backing up, downstream system not updated.
+Resolution: Add rate limit handling in Celigo flow error handling, implement throttling with configurable delay between requests, check API rate limit headers.
+
+INCIDENT: Celigo Mapping Transform Error
+Symptoms: Retry count 1-3, delay 5-15 minutes, system = Celigo
+Root Cause: Incoming data contains unexpected null value in required field — Celigo mapping script throws unhandled exception when field is absent.
+Impact: Record not created in target system, data loss risk, manual reprocessing required.
+Resolution: Add null check and default value handling in Celigo mapping script, implement pre-validation filter to catch missing required fields before transform.
+
+=== GENERAL ERP SYSTEM ANOMALIES ===
+
+INCIDENT: SLA Breach — Integration Processing Delay
+Symptoms: Retry count 0-2, delay exceeding 45 minutes, any system
+Root Cause: Integration processing delayed beyond agreed SLA threshold — could indicate upstream system slowness, network latency or queue backlog.
+Impact: Partner SLA breached, potential financial penalty, customer experience degraded.
+Resolution: Investigate queue depth, check upstream system health, notify account manager if SLA breach confirmed, document incident for SLA review.
+
+INCIDENT: Data Integrity Failure — Reconciliation Mismatch
+Symptoms: Retry count 0, delay 0, system = NetSuite
+Root Cause: Record count mismatch between source system and NetSuite after batch processing — indicates records dropped during transformation or filtering.
+Impact: Incomplete data in NetSuite, reporting inaccurate, audit trail incomplete.
+Resolution: Run reconciliation report comparing source vs target record counts, identify missing records, reprocess dropped records with detailed logging enabled.
+
+INCIDENT: Authentication Token Expiry
+Symptoms: Retry count 3-5, delay 15-30 minutes, system = NetSuite or Celigo
+Root Cause: OAuth 2.0 access token expired during long-running integration process — token refresh mechanism not correctly implemented.
+Impact: All API calls failing with HTTP 401 Unauthorized, integration completely stalled.
+Resolution: Implement proactive token refresh before expiry, add token refresh error handling, verify refresh token rotation is correctly configured.
+
+INCIDENT: Zero Delay Timestamp Anomaly
+Symptoms: Retry count 0, delay 0, system = any
+Root Cause: Transaction timestamp recorded as current time rather than actual event time — indicates ingestion timestamp error or clock synchronisation issue between systems.
+Impact: Transaction ordering incorrect, time-based analytics unreliable, SLA calculations inaccurate.
+Resolution: Validate timestamp source in integration flow, implement event time vs processing time distinction, check NTP synchronisation on source systems.
+
+INCIDENT: High Volume Peak Load Degradation
+Symptoms: Retry count 5-10, delay 45-90 minutes, system = any
+Root Cause: Integration system under peak load — typically end of month, Black Friday or seasonal peak — causing processing queue backup and increased latency across all flows.
+Impact: All integrations delayed, SLA breaches across multiple trading partners, business operations impacted.
+Resolution: Activate peak load contingency plan, prioritise critical order flows, temporarily increase processing capacity, communicate delays to affected partners.
