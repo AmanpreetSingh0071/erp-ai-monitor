@@ -5,7 +5,7 @@ import re
 
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+from langchain_huggingface import HuggingFaceInferenceAPIEmbeddings
 from langchain_groq import ChatGroq
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
