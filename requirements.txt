@@ -18,4 +18,5 @@ langchain-groq==0.1.4
 faiss-cpu==1.7.4
 
 python-dotenv==1.0.1
-langchain-huggingface
+langchain-huggingface==0.0.3
+sentence-transformers==2.7.0
