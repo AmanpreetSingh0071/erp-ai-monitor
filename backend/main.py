@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import sys
 import os
 import time
@@ -19,7 +22,8 @@ import joblib
 from pydantic import BaseModel
 
 from services.rule_engine.rule_engine import evaluate_rules
-from services.ai.rag_root_cause import init_rag, analyze_with_llm
+from services.ai.rag_root_cause import init_rag
+from services.agent.erp_agent import init_agent, run_agent
 
 app = FastAPI(title="ERP AI Monitoring API")
 
@@ -67,6 +71,28 @@ def startup_event():
         print("✅ RAG ready")
     except Exception as e:
         print("❌ RAG init failed:", e)
+
+    try:
+        print("🔄 Initializing LangGraph agent...")
+        init_agent()
+    except Exception as e:
+        print("❌ Agent init failed:", e)
+
+    # Ensure agent columns exist (idempotent migration)
+    try:
+        _conn = get_connection()
+        _cur = _conn.cursor()
+        _cur.execute("""
+            ALTER TABLE exceptions
+            ADD COLUMN IF NOT EXISTS agent_decision VARCHAR(20),
+            ADD COLUMN IF NOT EXISTS confidence_score FLOAT
+        """)
+        _conn.commit()
+        _cur.close()
+        _conn.close()
+        print("✅ DB columns verified")
+    except Exception as e:
+        print("❌ DB migration failed:", e)
 
     def background_worker():
         retry_delay = 10
@@ -117,40 +143,25 @@ async def notify_clients():
 
 
 # -------------------------
-# AI PROCESS
+# AI PROCESS (LangGraph agent)
 # -------------------------
 def run_ai(transaction_id, event_dict):
+    """Entry point for background threads — delegates to the LangGraph agent."""
 
-    print(f"🤖 AI STARTED for {transaction_id}")
-
-    conn = None
-    cursor = None
+    print(f"🤖 Agent STARTED for {transaction_id}")
 
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        result = analyze_with_llm(event_dict)
-        result_str = json.dumps(result) if isinstance(result, dict) else str(result)
-
-        cursor.execute(
-            """
-            UPDATE exceptions
-            SET root_cause=%s,
-                ai_status='DONE',
-                updated_at=NOW()
-            WHERE transaction_id=%s
-            """,
-            (result_str, transaction_id)
-        )
-
-        conn.commit()
-        print("✅ AI UPDATE DONE")
+        run_agent(transaction_id, event_dict)
 
     except Exception as e:
-        print("❌ AI FAILED:", e)
+        print(f"❌ Agent FAILED for {transaction_id}: {e}")
 
-        if cursor:
+        # Mark the row so the retry worker can pick it up
+        conn = None
+        cursor = None
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
             cursor.execute(
                 """
                 UPDATE exceptions
@@ -159,15 +170,16 @@ def run_ai(transaction_id, event_dict):
                     updated_at=NOW()
                 WHERE transaction_id=%s
                 """,
-                (str(e), transaction_id)
+                (str(e), transaction_id),
             )
             conn.commit()
-
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        except Exception as db_err:
+            print(f"❌ Could not mark FAILED in DB: {db_err}")
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
 
 # -------------------------
@@ -402,7 +414,8 @@ def insights():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at
+        SELECT transaction_id, rule_violation, root_cause, ai_status, created_at,
+               agent_decision, confidence_score
         FROM exceptions
         ORDER BY created_at DESC
         LIMIT 20
@@ -419,7 +432,9 @@ def insights():
             "rule_violation": r[1],
             "root_cause": r[2],
             "ai_status": r[3],
-            "created_at": r[4]
+            "created_at": r[4],
+            "agent_decision": r[5],
+            "confidence_score": r[6],
         }
         for r in rows
     ]
