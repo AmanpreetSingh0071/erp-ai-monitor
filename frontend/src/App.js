@@ -11,7 +11,6 @@ function App() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // 🌙 THEME STATE
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
@@ -20,9 +19,6 @@ function App() {
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  // -------------------------
-  // FETCH DATA
-  // -------------------------
   const fetchData = async () => {
     try {
       const [m, i, h] = await Promise.all([
@@ -55,36 +51,22 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // -------------------------
-  // AUTO WAKE
-  // -------------------------
   useEffect(() => {
     const wakeUp = async () => {
-      try {
-        await fetch(`${API}/health`);
-      } catch {}
+      try { await fetch(`${API}/health`); } catch {}
     };
-
     wakeUp();
     const interval = setInterval(wakeUp, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // -------------------------
-  // WEBSOCKET
-  // -------------------------
   useEffect(() => {
     const ws = new WebSocket("wss://erp-ai-monitor.onrender.com/ws");
-
     ws.onmessage = () => fetchData();
     ws.onerror = () => console.log("WS fallback");
-
     return () => ws.close();
   }, []);
 
-  // -------------------------
-  // ACTIONS
-  // -------------------------
   const startBackend = async () => {
     await axios.get(`${API}/health`);
     alert("Backend triggered!");
@@ -96,9 +78,6 @@ function App() {
     fetchData();
   };
 
-  // -------------------------
-  // STATES
-  // -------------------------
   if (loading) return <Centered>Loading dashboard...</Centered>;
 
   const theme = darkMode ? dark : light;
@@ -106,40 +85,26 @@ function App() {
   return (
     <div style={{ ...container, ...theme.container }}>
 
-      {/* 🌙 TOGGLE BUTTON */}
       <div style={toggleContainer}>
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          style={toggleBtn}
-        >
+        <button onClick={() => setDarkMode(!darkMode)} style={toggleBtn}>
           {darkMode ? "🌙" : "☀️"}
         </button>
       </div>
 
       <h1 style={{ color: theme.text }}>ERP AI Monitoring</h1>
 
-      {error && (
-        <div style={errorBox}>
-          ⚠️ {error}
-        </div>
-      )}
+      {error && <div style={errorBox}>⚠️ {error}</div>}
 
       <div style={{ marginTop: 15 }}>
         <button onClick={startBackend} style={button}>
           🚀 Start Backend
         </button>
-
-        <button
-          onClick={simulateTraffic}
-          style={{ ...simulateBtn, marginLeft: 10 }}
-        >
+        <button onClick={simulateTraffic} style={{ ...simulateBtn, marginLeft: 10 }}>
           ⚡ Simulate Traffic
         </button>
       </div>
 
-      <div style={{ ...live, color: theme.green }}>
-        ● Live Monitoring Active
-      </div>
+      <div style={{ ...live, color: theme.green }}>● Live Monitoring Active</div>
 
       <div style={{ ...subtitle, color: theme.subtext }}>
         Real-time anomaly detection with AI-driven root cause analysis
@@ -173,14 +138,29 @@ function App() {
           let parsed;
           try { parsed = JSON.parse(item.root_cause); } catch {}
 
+          const decision = item.agent_decision || parsed?.agent_decision || null;
+          const confidence = item.confidence_score != null
+            ? item.confidence_score
+            : parsed?.confidence_score != null
+            ? parsed.confidence_score
+            : null;
+
           return (
-            <div key={i} style={{ ...insightCard(item.rule_violation), background: theme.card }}>
+            <div key={i} style={{ ...insightCard(), background: theme.card }}>
               <div style={rowBetween}>
                 <strong style={{ color: theme.text }}>{item.transaction_id}</strong>
                 <StatusBadge status={item.ai_status} />
               </div>
 
-              <span style={tag}>{item.rule_violation}</span>
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                <span style={tag}>{item.rule_violation}</span>
+                {decision && <AgentBadge decision={decision} />}
+                {confidence != null && (
+                  <span style={confidenceBadge(confidence)}>
+                    Agent Confidence {Math.round(confidence * 100)}%
+                  </span>
+                )}
+              </div>
 
               {parsed && (
                 <>
@@ -235,13 +215,48 @@ function StatusBadge({ status }) {
   const color =
     status === "DONE" ? "#16a34a" :
     status === "FAILED" ? "#dc2626" : "#f59e0b";
+  return (
+    <span style={{ background: color, color: "white", padding: "4px 10px", borderRadius: "20px" }}>
+      {status}
+    </span>
+  );
+}
 
-  return <span style={{ background: color, color: "white", padding: "4px 10px", borderRadius: "20px" }}>{status}</span>;
+function AgentBadge({ decision }) {
+  const colors = {
+    AUTO_REMEDIATE: "#16a34a",
+    INVESTIGATE: "#f59e0b",
+    ESCALATE: "#dc2626"
+  };
+  const labels = {
+    AUTO_REMEDIATE: "Auto Remediate",
+    INVESTIGATE: "Investigate",
+    ESCALATE: "Escalate"
+  };
+  const color = colors[decision] || "#6b7280";
+  const label = labels[decision] || decision;
+  return (
+    <span style={{ background: color, color: "white", padding: "4px 10px", borderRadius: "6px", fontSize: "13px" }}>
+      {label}
+    </span>
+  );
 }
 
 function Centered({ children }) {
   return <div style={centered}>{children}</div>;
 }
+
+// -------------------------
+// HELPERS
+// -------------------------
+const confidenceBadge = (score) => ({
+  background: score >= 0.85 ? "#dcfce7" : score >= 0.60 ? "#fef9c3" : "#fee2e2",
+  color: score >= 0.85 ? "#166534" : score >= 0.60 ? "#854d0e" : "#991b1b",
+  padding: "4px 10px",
+  borderRadius: "6px",
+  fontSize: "13px",
+  fontWeight: "bold"
+});
 
 // -------------------------
 // THEMES
@@ -265,89 +280,24 @@ const dark = {
 };
 
 // -------------------------
-const toggleContainer = {
-  position: "absolute",
-  top: 20,
-  right: 20
-};
-
-const toggleBtn = {
-  padding: "8px 12px",
-  borderRadius: "20px",
-  border: "none",
-  cursor: "pointer"
-};
-
-const container = {
-  maxWidth: "1100px",
-  margin: "auto",
-  padding: "40px",
-  fontFamily: "Arial"
-};
-
-const button = {
-  padding: "10px 20px",
-  background: "#16a34a",
-  color: "white",
-  border: "none",
-  borderRadius: "8px"
-};
-
-const simulateBtn = {
-  padding: "10px 20px",
-  background: "#2563eb",
-  color: "white",
-  border: "none",
-  borderRadius: "8px"
-};
-
+// STYLES
+// -------------------------
+const toggleContainer = { position: "absolute", top: 20, right: 20 };
+const toggleBtn = { padding: "8px 12px", borderRadius: "20px", border: "none", cursor: "pointer" };
+const container = { maxWidth: "1100px", margin: "auto", padding: "40px", fontFamily: "Arial" };
+const button = { padding: "10px 20px", background: "#16a34a", color: "white", border: "none", borderRadius: "8px" };
+const simulateBtn = { padding: "10px 20px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px" };
 const grid = { display: "flex", gap: "20px", flexWrap: "wrap" };
-
-const card = {
-  padding: "20px",
-  borderRadius: "12px",
-  minWidth: "180px"
-};
-
-const insightCard = () => ({
-  padding: "16px",
-  marginTop: "15px",
-  borderRadius: "12px"
-});
-
+const card = { padding: "20px", borderRadius: "12px", minWidth: "180px" };
+const insightCard = () => ({ padding: "16px", marginTop: "15px", borderRadius: "12px" });
 const rowBetween = { display: "flex", justifyContent: "space-between" };
-
-const tag = {
-  background: "#ef4444",
-  color: "white",
-  padding: "4px 10px",
-  borderRadius: "6px"
-};
-
-const block = {
-  padding: "10px",
-  borderRadius: "8px",
-  marginTop: "10px"
-};
-
+const tag = { background: "#ef4444", color: "white", padding: "4px 10px", borderRadius: "6px" };
+const block = { padding: "10px", borderRadius: "8px", marginTop: "10px" };
 const time = { fontSize: "12px", marginTop: "10px" };
-
-const centered = {
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  height: "100vh"
-};
-
+const centered = { display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" };
 const live = { fontWeight: "bold" };
 const subtitle = {};
 const lastUpdate = { fontSize: "12px", marginBottom: 20 };
-
-const errorBox = {
-  background: "#fee2e2",
-  padding: "10px",
-  borderRadius: "8px",
-  marginTop: "10px"
-};
+const errorBox = { background: "#fee2e2", padding: "10px", borderRadius: "8px", marginTop: "10px" };
 
 export default App;

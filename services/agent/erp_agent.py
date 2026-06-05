@@ -86,19 +86,25 @@ Event details:
   Retry Count:   {event["retry_count"]}
   Delay Minutes: {event["delay_minutes"]}
 
-Return this exact JSON structure:
+Before assigning a confidence_score, reason through these questions:
+1. Does the historical context contain an incident with the SAME system, similar retry count AND similar delay? If yes to all three, score 0.85+
+2. Does the context match on system only, or are the retry/delay values quite different? Score 0.60-0.84
+3. Is the event pattern not present in context at all, or is this a novel failure type? Score below 0.60
+
+Be honest about uncertainty. Do NOT default to 1.00. Most events should score between 0.60 and 0.90.
+
+Scoring reference:
+- 0.85-1.00: strong match on system + retry + delay + known fix — use sparingly
+- 0.60-0.84: partial match — system matches but pattern differs somewhat
+- 0.00-0.59: weak or no match — novel event, human review required
+
+Return this exact JSON structure with a numeric confidence_score between 0.00 and 1.00:
 {{
   "root_cause": "One precise sentence describing the root cause",
   "impact": "Business impact — SLA breach, delays, revenue risk, etc.",
   "recommendation": "Specific actionable fix with config/API/log references",
-  "confidence_score": 0.00
-}}
-
-confidence_score rules:
-- 0.85–1.00: pattern clearly matches a known incident in context; fix is unambiguous
-- 0.60–0.84: partial match; fix likely but some uncertainty remains
-- 0.00–0.59: event is novel or ambiguous; human review required
-"""
+  "confidence_score": 0.75
+}}"""
 
     start = time.time()
     response = llm.invoke(prompt)
@@ -170,7 +176,6 @@ def log_to_db(state: AgentState) -> AgentState:
     score = state["confidence_score"]
     timing = state.get("timing", {})
 
-    # Merge timing into the stored result for observability
     result_payload = {
         **diagnosis,
         "agent_decision": decision,
@@ -185,7 +190,6 @@ def log_to_db(state: AgentState) -> AgentState:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Ensure agent columns exist (idempotent — safe to run every time)
         cursor.execute("""
             ALTER TABLE exceptions
             ADD COLUMN IF NOT EXISTS agent_decision VARCHAR(20),
@@ -195,11 +199,11 @@ def log_to_db(state: AgentState) -> AgentState:
         cursor.execute(
             """
             UPDATE exceptions
-            SET root_cause      = %s,
-                ai_status       = 'DONE',
-                agent_decision  = %s,
+            SET root_cause       = %s,
+                ai_status        = 'DONE',
+                agent_decision   = %s,
                 confidence_score = %s,
-                updated_at      = NOW()
+                updated_at       = NOW()
             WHERE transaction_id = %s
             """,
             (result_str, decision, score, tx_id),
@@ -210,7 +214,6 @@ def log_to_db(state: AgentState) -> AgentState:
 
     except Exception as e:
         print(f"❌ log_to_db failed for {tx_id}: {e}")
-        # Try a minimal fallback update so the row isn't stuck PENDING
         try:
             if conn and cursor:
                 cursor.execute(
