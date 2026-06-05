@@ -7,6 +7,7 @@ import time
 import json
 import asyncio
 import threading
+_agent_semaphore = threading.Semaphore(1)
 import random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -149,37 +150,38 @@ def run_ai(transaction_id, event_dict):
     """Entry point for background threads — delegates to the LangGraph agent."""
 
     print(f"🤖 Agent STARTED for {transaction_id}")
+    with _agent_semaphore:
 
-    try:
-        run_agent(transaction_id, event_dict)
-
-    except Exception as e:
-        print(f"❌ Agent FAILED for {transaction_id}: {e}")
-
-        # Mark the row so the retry worker can pick it up
-        conn = None
-        cursor = None
         try:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                UPDATE exceptions
-                SET root_cause=%s,
-                    ai_status='FAILED',
-                    updated_at=NOW()
-                WHERE transaction_id=%s
-                """,
-                (str(e), transaction_id),
-            )
-            conn.commit()
-        except Exception as db_err:
-            print(f"❌ Could not mark FAILED in DB: {db_err}")
-        finally:
-            if cursor:
-                cursor.close()
-            if conn:
-                conn.close()
+            run_agent(transaction_id, event_dict)
+
+        except Exception as e:
+            print(f"❌ Agent FAILED for {transaction_id}: {e}")
+
+            # Mark the row so the retry worker can pick it up
+            conn = None
+            cursor = None
+            try:
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE exceptions
+                    SET root_cause=%s,
+                        ai_status='FAILED',
+                        updated_at=NOW()
+                    WHERE transaction_id=%s
+                    """,
+                    (str(e), transaction_id),
+                )
+                conn.commit()
+            except Exception as db_err:
+                print(f"❌ Could not mark FAILED in DB: {db_err}")
+            finally:
+                if cursor:
+                    cursor.close()
+                if conn:
+                    conn.close()
 
 
 # -------------------------
