@@ -1,0 +1,51 @@
+case_id,system,partner,failure_category,retry_count,delay_minutes,severity,error_signature,expected_detection,expected_root_cause,expected_routing,notes
+EVAL-001,EDI_Gateway,Walmart,EDI_MAPPING_ERROR,4,45,MEDIUM,EDI 850 rejected: missing mandatory ISA envelope header,ANOMALY,EDI_MAPPING_ERROR,AUTO_REMEDIATE,Classic malformed envelope; standard revalidate+reprocess fix
+EVAL-002,SPS_Commerce,Target,EDI_MAPPING_ERROR,3,38,MEDIUM,GS segment control number mismatch on 810 invoice,ANOMALY,EDI_MAPPING_ERROR,AUTO_REMEDIATE,Well-understood control-number fix
+EVAL-003,EDI_Gateway,Kroger,EDI_MAPPING_ERROR,5,60,MEDIUM,"Invalid qualifier in N1 segment, partner ID not recognised",ANOMALY,EDI_MAPPING_ERROR,INVESTIGATE,Partner config drift; analyst should confirm mapping table
+EVAL-004,SPS_Commerce,Costco,EDI_MAPPING_ERROR,4,42,LOW,"Date format DTM segment CCYYMMDD expected, received YYMMDD",ANOMALY,EDI_MAPPING_ERROR,AUTO_REMEDIATE,Deterministic date reformat
+EVAL-005,EDI_Gateway,HomeDepot,EDI_MAPPING_ERROR,6,90,HIGH,Repeated 856 ASN structure failure across 40 transactions,ANOMALY,EDI_MAPPING_ERROR,ESCALATE,Systemic mapping break affecting many docs; needs engineer
+EVAL-006,SPS_Commerce,Macys,EDI_MAPPING_ERROR,3,33,LOW,Trailing whitespace in REF segment failing strict parser,ANOMALY,EDI_MAPPING_ERROR,AUTO_REMEDIATE,Trivial trim fix
+EVAL-007,EDI_Gateway,Nordstrom,EDI_MAPPING_ERROR,4,50,MEDIUM,Unexpected segment terminator in 850 line items,ANOMALY,EDI_MAPPING_ERROR,INVESTIGATE,Could indicate partner spec change
+EVAL-008,SPS_Commerce,Tesco,EDI_MAPPING_ERROR,5,55,MEDIUM,"Missing GE segment, functional group not closed",ANOMALY,EDI_MAPPING_ERROR,AUTO_REMEDIATE,Standard envelope repair
+EVAL-009,NetSuite,Amazon,PARTNER_API_TIMEOUT,3,35,LOW,"Partner REST endpoint 504 gateway timeout, single occurrence",ANOMALY,PARTNER_API_TIMEOUT,AUTO_REMEDIATE,Transient; retry resolves
+EVAL-010,NetSuite,Shopify,PARTNER_API_TIMEOUT,4,40,MEDIUM,Connection timeout after 30s on order sync,ANOMALY,PARTNER_API_TIMEOUT,AUTO_REMEDIATE,Standard back-off retry
+EVAL-011,Oracle_Fusion,FedEx,PARTNER_API_TIMEOUT,7,120,HIGH,"Carrier API unreachable for 2 hours, all shipment calls failing",ANOMALY,PARTNER_API_TIMEOUT,ESCALATE,"Sustained outage; partner-side, needs escalation"
+EVAL-012,NetSuite,UPS,PARTNER_API_TIMEOUT,3,32,LOW,Intermittent 503 on rate quote endpoint,ANOMALY,PARTNER_API_TIMEOUT,AUTO_REMEDIATE,"Transient throttle, retry"
+EVAL-013,SAP_ERP,DHL,PARTNER_API_TIMEOUT,6,100,HIGH,Repeated SSL handshake timeout to partner gateway,ANOMALY,PARTNER_API_TIMEOUT,ESCALATE,Possible cert issue partner-side; escalate
+EVAL-014,NetSuite,Stripe,PARTNER_API_TIMEOUT,4,46,MEDIUM,"Payment webhook callback timed out, awaiting confirmation",ANOMALY,PARTNER_API_TIMEOUT,INVESTIGATE,Financial callback; confirm before auto-action
+EVAL-015,Oracle_Fusion,Avalara,PARTNER_API_TIMEOUT,3,37,MEDIUM,"Tax calculation service slow response, 35s latency",ANOMALY,PARTNER_API_TIMEOUT,AUTO_REMEDIATE,Retry with back-off
+EVAL-016,NetSuite,Amazon,PARTNER_API_TIMEOUT,8,180,CRITICAL,"Marketplace API down 3h during peak, 200+ orders queued",ANOMALY,PARTNER_API_TIMEOUT,ESCALATE,Critical peak-window outage; immediate escalation
+EVAL-017,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,3,55,MEDIUM,"Async job queue depth 1,200, processing lag rising",ANOMALY,NETSUITE_QUEUE_BACKLOG,INVESTIGATE,Capacity question; analyst review
+EVAL-018,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,4,75,HIGH,"Map/Reduce script queue stalled, no completions 40min",ANOMALY,NETSUITE_QUEUE_BACKLOG,ESCALATE,Stalled processor; needs engineer
+EVAL-019,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,3,48,MEDIUM,Scheduled script deployment backlog after release,ANOMALY,NETSUITE_QUEUE_BACKLOG,INVESTIGATE,Post-deploy backlog; confirm cause
+EVAL-020,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,5,85,HIGH,"CSV import queue saturated, 8k records pending 1h",ANOMALY,NETSUITE_QUEUE_BACKLOG,ESCALATE,Large saturation; escalate
+EVAL-021,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,3,41,MEDIUM,Inventory sync queue lag during nightly batch,ANOMALY,NETSUITE_QUEUE_BACKLOG,INVESTIGATE,Batch-window lag; review schedule
+EVAL-022,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,4,68,HIGH,Workflow scheduler thread pool exhausted,ANOMALY,NETSUITE_QUEUE_BACKLOG,ESCALATE,Resource exhaustion; engineer
+EVAL-023,NetSuite,Internal,NETSUITE_QUEUE_BACKLOG,3,52,MEDIUM,"Webhook delivery queue retrying, downstream slow",ANOMALY,NETSUITE_QUEUE_BACKLOG,INVESTIGATE,Downstream dependency; review
+EVAL-024,NetSuite,Walmart,DUPLICATE_TRANSACTION,3,30,HIGH,"Duplicate PO# detected, sales order would double-post",ANOMALY,DUPLICATE_TRANSACTION,INVESTIGATE,"Financial risk; never auto-post, confirm first"
+EVAL-025,SAP_ERP,Target,DUPLICATE_TRANSACTION,4,34,HIGH,"Invoice 810 reprocessed, duplicate GL entry risk",ANOMALY,DUPLICATE_TRANSACTION,ESCALATE,GL integrity risk; escalate to finance ops
+EVAL-026,NetSuite,Costco,DUPLICATE_TRANSACTION,3,31,MEDIUM,Retry created duplicate item fulfilment record,ANOMALY,DUPLICATE_TRANSACTION,INVESTIGATE,Confirm idempotency before reversing
+EVAL-027,Oracle_Fusion,Kroger,DUPLICATE_TRANSACTION,5,44,HIGH,Payment applied twice after webhook replay,ANOMALY,DUPLICATE_TRANSACTION,ESCALATE,Double payment; immediate escalation
+EVAL-028,NetSuite,HomeDepot,DUPLICATE_TRANSACTION,3,33,MEDIUM,Duplicate customer record created on import,ANOMALY,DUPLICATE_TRANSACTION,INVESTIGATE,Data hygiene; merge after review
+EVAL-029,SAP_ERP,Tesco,DUPLICATE_TRANSACTION,4,36,HIGH,"ASN 856 sent twice, partner flagged duplicate shipment",ANOMALY,DUPLICATE_TRANSACTION,INVESTIGATE,Partner-facing; confirm before resend
+EVAL-030,NetSuite,Sainsburys,DUPLICATE_TRANSACTION,3,30,MEDIUM,Idempotency key collision on order create,ANOMALY,DUPLICATE_TRANSACTION,INVESTIGATE,Key collision; verify dedup logic
+EVAL-031,NetSuite,Amazon,AUTH_FAILURE,3,30,MEDIUM,"OAuth token expired, 401 on token-based auth",ANOMALY,AUTH_FAILURE,AUTO_REMEDIATE,Token refresh is automatable
+EVAL-032,SAP_ERP,Stripe,AUTH_FAILURE,4,35,MEDIUM,"Access token refresh failed, refresh token still valid",ANOMALY,AUTH_FAILURE,AUTO_REMEDIATE,Re-mint access token
+EVAL-033,NetSuite,Coupa,AUTH_FAILURE,6,70,HIGH,"Credentials revoked, 403 forbidden persistent",ANOMALY,AUTH_FAILURE,ESCALATE,Revoked creds need human re-provisioning
+EVAL-034,Oracle_Fusion,Avalara,AUTH_FAILURE,3,32,MEDIUM,TBA signature mismatch on integration record,ANOMALY,AUTH_FAILURE,INVESTIGATE,Signature config; analyst verifies keys
+EVAL-035,NetSuite,Shopify,AUTH_FAILURE,4,38,MEDIUM,Expired client secret on connected app,ANOMALY,AUTH_FAILURE,ESCALATE,Secret rotation needs admin
+EVAL-036,SAP_ERP,DHL,AUTH_FAILURE,3,31,LOW,Clock skew caused JWT nbf validation failure,ANOMALY,AUTH_FAILURE,AUTO_REMEDIATE,NTP resync + retry
+EVAL-037,NetSuite,Amazon,AUTH_FAILURE,7,95,HIGH,"Repeated 401 after rotation, integration locked out",ANOMALY,AUTH_FAILURE,ESCALATE,Lockout; needs admin intervention
+EVAL-038,NetSuite,Amazon,RATE_LIMIT_EXCEEDED,3,30,LOW,SuiteTalk concurrency governance limit hit,ANOMALY,RATE_LIMIT_EXCEEDED,AUTO_REMEDIATE,Back-off and stagger; automatable
+EVAL-039,NetSuite,Shopify,RATE_LIMIT_EXCEEDED,4,33,LOW,REST API 429 too many requests during bulk sync,ANOMALY,RATE_LIMIT_EXCEEDED,AUTO_REMEDIATE,Exponential back-off
+EVAL-040,Oracle_Fusion,Avalara,RATE_LIMIT_EXCEEDED,3,31,LOW,"Tax API throttled, monthly quota near limit",ANOMALY,RATE_LIMIT_EXCEEDED,INVESTIGATE,Quota planning; review usage
+EVAL-041,NetSuite,Stripe,RATE_LIMIT_EXCEEDED,5,50,MEDIUM,Webhook burst exceeded partner rate cap,ANOMALY,RATE_LIMIT_EXCEEDED,AUTO_REMEDIATE,Queue and throttle outbound
+EVAL-042,SAP_ERP,Coupa,RATE_LIMIT_EXCEEDED,4,40,MEDIUM,Procurement API daily call ceiling reached,ANOMALY,RATE_LIMIT_EXCEEDED,INVESTIGATE,Ceiling planning; review batch size
+EVAL-043,NetSuite,Internal,RATE_LIMIT_EXCEEDED,3,30,LOW,SuiteScript governance units exhausted mid-execution,ANOMALY,RATE_LIMIT_EXCEEDED,AUTO_REMEDIATE,Yield/reschedule; standard pattern
+EVAL-044,NetSuite,Amazon,RATE_LIMIT_EXCEEDED,6,80,HIGH,Sustained 429 throttling blocking peak order intake,ANOMALY,RATE_LIMIT_EXCEEDED,ESCALATE,Peak throttle blocking revenue; escalate
+EVAL-045,Oracle_Fusion,Stripe,NORMAL,0,5,LOW,"Clean transaction, no retries, fast completion",NORMAL,NONE,NONE,Clear normal baseline (quiet)
+EVAL-046,EDI_Gateway,Target,NORMAL,1,12,LOW,"Single retry, succeeded second attempt, within SLA",NORMAL,NONE,NONE,Healthy transient retry (quiet)
+EVAL-047,NetSuite,Amazon,NORMAL,2,15,LOW,"Two retries within tolerance, no SLA breach",NORMAL,NONE,NONE,Borderline but sub-threshold (quiet)
+EVAL-048,NetSuite,Internal,NORMAL,1,40,LOW,"Planned nightly batch window, elevated delay expected and benign",NORMAL,NONE,NONE,NOISY FP-trap: delay trips rule (>=30) but benign maintenance window
+EVAL-049,SAP_ERP,DHL,NORMAL,4,18,LOW,"Known flaky partner heartbeat, self-heals, no business impact",NORMAL,NONE,NONE,NOISY FP-trap: retry trips rule (>=3) but benign self-healing pattern
+EVAL-050,NetSuite,Costco,NORMAL,2,50,LOW,"Scheduled data warehouse export, high delay by design",NORMAL,NONE,NONE,"NOISY FP-trap: delay trips rule (>=30) but planned export, benign"

@@ -1,0 +1,284 @@
+{
+  "EVAL-001:beab9091ade11424": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-002:8fd5fa36bb6f7906": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.9
+  },
+  "EVAL-003:6fb4d9e1fbfa35c8": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-004:2c0da09b00c6f049": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-005:e7bc13138af6a50f": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-006:794a948aebf0f8d1": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.9
+  },
+  "EVAL-007:4d46575499262d58": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-008:e331fa78a9a6fb7d": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-009:39b0de0636ba74a2": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-010:9befa0ea4b5809bd": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-011:1591b84521803c65": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-012:5f13f28028e780ca": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-013:4ccfa74cdc1f1ce8": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-014:c7fc0fe0ae12b85f": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-015:2a983a963a0f26a0": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-016:a78acac1133c9a64": {
+    "is_anomaly": true,
+    "root_cause_category": "PARTNER_API_TIMEOUT",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-017:51bd4708929d11ba": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.9
+  },
+  "EVAL-018:6a5b438cc604b5bd": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-019:f1cb1ca0a6d07b81": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.95
+  },
+  "EVAL-020:2391c989678ff3cc": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-021:a7d31c127a853dae": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-022:88302be981da9876": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-023:046bdb5166d1f71d": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-024:67e72b1c9e06da75": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-025:376524e1132d3ebe": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-026:4af2eafa67f19a59": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-027:5e5cad309c98eb53": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-028:3262b450d1849a8f": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-029:913d91d9722a3369": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-030:9f2a50a5d9e51b78": {
+    "is_anomaly": true,
+    "root_cause_category": "DUPLICATE_TRANSACTION",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.95
+  },
+  "EVAL-031:68885edb0d581da1": {
+    "is_anomaly": true,
+    "root_cause_category": "AUTH_FAILURE",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-032:92d4201311f317ef": {
+    "is_anomaly": true,
+    "root_cause_category": "AUTH_FAILURE",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-033:2f376b38c11040d6": {
+    "is_anomaly": true,
+    "root_cause_category": "AUTH_FAILURE",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-034:6e124c7383a0c825": {
+    "is_anomaly": true,
+    "root_cause_category": "EDI_MAPPING_ERROR",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.95
+  },
+  "EVAL-035:6ffc3fb601387849": {
+    "is_anomaly": true,
+    "root_cause_category": "AUTH_FAILURE",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.9
+  },
+  "EVAL-036:5aa32232eeabd125": {
+    "is_anomaly": true,
+    "root_cause_category": "AUTH_FAILURE",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-037:e2979a9954b78f63": {
+    "is_anomaly": true,
+    "root_cause_category": "AUTH_FAILURE",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-038:9b64422a1689b36f": {
+    "is_anomaly": true,
+    "root_cause_category": "RATE_LIMIT_EXCEEDED",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-039:cc951b270c58aee5": {
+    "is_anomaly": true,
+    "root_cause_category": "RATE_LIMIT_EXCEEDED",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-040:4ae6b79f093e2c3c": {
+    "is_anomaly": true,
+    "root_cause_category": "RATE_LIMIT_EXCEEDED",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-041:84aec3bcc5ccb46b": {
+    "is_anomaly": true,
+    "root_cause_category": "RATE_LIMIT_EXCEEDED",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.95
+  },
+  "EVAL-042:e9c664bf4ec86707": {
+    "is_anomaly": true,
+    "root_cause_category": "RATE_LIMIT_EXCEEDED",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.75
+  },
+  "EVAL-043:b0849df06489a385": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.8
+  },
+  "EVAL-044:5919c443eba92e7f": {
+    "is_anomaly": true,
+    "root_cause_category": "RATE_LIMIT_EXCEEDED",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.85
+  },
+  "EVAL-048:5ccbcba967cd1d63": {
+    "is_anomaly": false,
+    "root_cause_category": "NONE",
+    "routing_decision": "NONE",
+    "confidence_score": 1.0
+  },
+  "EVAL-049:6bedb0bfd836eb0c": {
+    "is_anomaly": true,
+    "root_cause_category": "KNOWN_FLAKY_PARTNER_HEARTBEAT",
+    "routing_decision": "AUTO_REMEDIATE",
+    "confidence_score": 0.9
+  },
+  "EVAL-050:271f1792b31c7193": {
+    "is_anomaly": true,
+    "root_cause_category": "NETSUITE_QUEUE_BACKLOG",
+    "routing_decision": "INVESTIGATE",
+    "confidence_score": 0.75
+  }
+}
