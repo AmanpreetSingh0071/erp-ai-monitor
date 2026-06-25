@@ -1,0 +1,2 @@
+model,N,accuracy,mean_confidence,overconfidence,ECE,MCE,Brier,AUROC,ECE_platt,Brier_platt,AUROC_platt
+llama-3.1-8b-instant,46,0.4565,0.8739,0.4174,0.4174,0.5466,0.4292,0.4610,0.0000,0.2480,0.5390
