@@ -51,7 +51,10 @@ except Exception:
 RANDOM_SEED = 42
 RETRY_THRESHOLD = 3
 DELAY_THRESHOLD = 30
-CACHE_FILE = "llm_cache.json"
+def cache_path(llm_name):
+    """Per-model cache so different models never overwrite each other."""
+    safe = llm_name.replace("/", "_").replace(":", "_")
+    return f"llm_cache_{safe}.json"
 ROUTING_LABELS = ["AUTO_REMEDIATE", "INVESTIGATE", "ESCALATE"]
 
 CATEGORIES = [
@@ -104,17 +107,17 @@ def if_flags(model, case):
 # -------------------------------------------------------------------
 # LLM (Config C) WITH CACHING + RATE-LIMIT HANDLING
 # -------------------------------------------------------------------
-def load_cache():
-    if os.path.exists(CACHE_FILE):
+def load_cache(path):
+    if os.path.exists(path):
         try:
-            return json.load(open(CACHE_FILE))
+            return json.load(open(path))
         except Exception:
             return {}
     return {}
 
 
-def save_cache(cache):
-    json.dump(cache, open(CACHE_FILE, "w"), indent=2)
+def save_cache(cache, path):
+    json.dump(cache, open(path, "w"), indent=2)
 
 
 def build_eval_prompt(case):
@@ -173,7 +176,7 @@ Return ONLY valid JSON, no markdown:
 }}"""
 
 
-def call_llm(case, llm, cache, delay):
+def call_llm(case, llm, cache, delay, cache_file):
     prompt = build_eval_prompt(case)
     key = case["case_id"] + ":" + hashlib.sha256(prompt.encode()).hexdigest()[:16]
     if key in cache:
@@ -202,7 +205,7 @@ def call_llm(case, llm, cache, delay):
 
     parsed = _extract_json(content)
     cache[key] = parsed
-    save_cache(cache)
+    save_cache(cache, cache_file)
     time.sleep(delay)
     return parsed, False
 
@@ -320,13 +323,14 @@ def run_config_b(cases, model):
             for c in cases}
 
 
-def run_config_c(cases, model, delay):
+def run_config_c(cases, model, delay, llm_name):
     from langchain_groq import ChatGroq
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         return None, None, None
-    llm = ChatGroq(model="llama-3.1-8b-instant", api_key=api_key)
-    cache = load_cache()
+    llm = ChatGroq(model=llm_name, api_key=api_key)
+    cache_file = cache_path(llm_name)
+    cache = load_cache(cache_file)
 
     detection, routing, conf_by_case = {}, {}, {}
     gated = 0
@@ -336,7 +340,7 @@ def run_config_c(cases, model, delay):
             detection[c["case_id"]] = "NORMAL"
             continue
         gated += 1
-        parsed, was_cached = call_llm(c, llm, cache, delay)
+        parsed, was_cached = call_llm(c, llm, cache, delay, cache_file)
         is_anom = bool(parsed.get("is_anomaly", True))
         detection[c["case_id"]] = "ANOMALY" if is_anom else "NORMAL"
         try:
@@ -368,10 +372,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("--delay", type=float, default=5.0)
+    ap.add_argument("--model", default="llama-3.1-8b-instant",
+                    help="Groq chat model for Config C (e.g. llama-3.3-70b-versatile, "
+                         "openai/gpt-oss-120b)")
     args = ap.parse_args()
+    safe_model = args.model.replace("/", "_").replace(":", "_")
 
     cases = load_cases()
     print(f"Loaded {len(cases)} ground-truth cases.")
+    print(f"LLM for Config C: {args.model}")
     model = train_isolation_forest()
     print("Isolation Forest trained on synthetic normal distribution.\n")
 
@@ -389,7 +398,7 @@ def main():
     if not args.no_llm:
         print("\n" + "=" * 60)
         print("CONFIG C — Full agent (gate + few-shot LLM review + routing)")
-        det_c, route_c, conf_c = run_config_c(cases, model, args.delay)
+        det_c, route_c, conf_c = run_config_c(cases, model, args.delay, args.model)
         if det_c is None:
             print("\n⚠️  GROQ_API_KEY not set — Config C skipped.")
         else:
@@ -403,8 +412,9 @@ def main():
             print_confusion(routing_confusion(cases, route_c))
             calibration_summary(cases, route_c, conf_c)
 
-            # per-case routing CSV
-            with open("results_routing.csv", "w", newline="") as f:
+            # per-case routing CSV (per-model filename)
+            routing_csv = f"results_routing_{safe_model}.csv"
+            with open(routing_csv, "w", newline="") as f:
                 w = csv.writer(f)
                 w.writerow(["case_id", "failure_category", "expected_routing",
                             "predicted_routing", "confidence", "correct"])
@@ -418,7 +428,8 @@ def main():
     else:
         print("\n(Config C skipped via --no-llm)")
 
-    with open("results_detection.csv", "w", newline="") as f:
+    detection_csv = f"results_detection_{safe_model}.csv"
+    with open(detection_csv, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["configuration", "precision", "recall", "f1", "fpr",
                     "TP", "FP", "FN", "TN"])
@@ -436,7 +447,8 @@ def main():
               f"{m['f1']*100:7.1f}{m['fpr']*100:7.1f}")
     if routing_acc:
         print(f"\nRQ1 routing accuracy (Config C): {routing_acc[0]*100:.1f}%")
-    print("\n✅ Wrote results_detection.csv" + (" and results_routing.csv" if routing_acc else ""))
+    print(f"\n✅ Wrote {detection_csv}"
+          + (f" and {routing_csv}" if routing_acc else ""))
 
 
 if __name__ == "__main__":

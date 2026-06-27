@@ -27,6 +27,7 @@ Outputs: console metrics, reliability_diagram.png, confidence_histogram.png,
          calibration_metrics.csv
 """
 
+import os
 import csv
 import argparse
 import numpy as np
@@ -78,11 +79,22 @@ def reliability_by_value(conf, corr):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", default="results_routing.csv")
-    ap.add_argument("--model-name", default="llama-3.1-8b-instant")
+    ap.add_argument("--model-name", default="llama-3.1-8b-instant",
+                    help="Model whose routing results to analyse")
+    ap.add_argument("--input", default=None,
+                    help="Routing CSV. Defaults to results_routing_<model>.csv, "
+                         "falling back to results_routing.csv")
     args = ap.parse_args()
 
-    conf, corr = load(args.input)
+    safe = args.model_name.replace("/", "_").replace(":", "_")
+    # Resolve input: explicit > per-model file > legacy unsuffixed file
+    inp = args.input
+    if inp is None:
+        cand = f"results_routing_{safe}.csv"
+        inp = cand if os.path.exists(cand) else "results_routing.csv"
+    print(f"Reading: {inp}")
+
+    conf, corr = load(inp)
     N = len(conf)
     acc = corr.mean()
     mean_conf = conf.mean()
@@ -148,7 +160,7 @@ def main():
     print("     so it cannot rescue routing. The deficit is in the signal itself.")
 
     # CSV out
-    with open("calibration_metrics.csv", "w", newline="") as f:
+    with open(f"calibration_metrics_{safe}.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["model", "N", "accuracy", "mean_confidence", "overconfidence",
                     "ECE", "MCE", "Brier", "AUROC",
@@ -182,7 +194,7 @@ def main():
                      f"ECE={ece:.2f}, AUROC={auroc:.2f} (confidence is overconfident "
                      f"and non-discriminative)")
         ax.legend(loc="upper left"); ax.grid(alpha=0.3)
-        plt.tight_layout(); plt.savefig("reliability_diagram.png", dpi=150)
+        plt.tight_layout(); plt.savefig(f"reliability_diagram_{safe}.png", dpi=150)
 
         # Confidence histogram split by correctness
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -195,8 +207,8 @@ def main():
         ax.set_title("Confidence distribution by correctness\n"
                      "(correct and wrong decisions occupy the same confidence range)")
         ax.legend(); ax.grid(alpha=0.3)
-        plt.tight_layout(); plt.savefig("confidence_histogram.png", dpi=150)
-        print("\n✅ Wrote reliability_diagram.png, confidence_histogram.png, calibration_metrics.csv")
+        plt.tight_layout(); plt.savefig(f"confidence_histogram_{safe}.png", dpi=150)
+        print(f"\n✅ Wrote reliability_diagram_{safe}.png, confidence_histogram_{safe}.png, calibration_metrics_{safe}.csv")
     except Exception as e:
         print(f"\n(plots skipped: {e})")
 
