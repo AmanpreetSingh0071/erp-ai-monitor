@@ -339,16 +339,37 @@ def retry_pending_ai():
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Reclaim anything left PROCESSING by a run that died mid-flight.
     cursor.execute(
         """
-        SELECT transaction_id, event_data
-        FROM exceptions
-        WHERE ai_status='PENDING'
-        LIMIT 5
+        UPDATE exceptions
+        SET ai_status='PENDING'
+        WHERE ai_status='PROCESSING'
+          AND updated_at < NOW() - INTERVAL '10 minutes'
+        """
+    )
+
+    # Claim rows atomically: mark them PROCESSING as we select them, so the
+    # next poll (10s later) does not spawn duplicate threads for work that is
+    # already queued behind the agent semaphore.
+    cursor.execute(
+        """
+        UPDATE exceptions
+        SET ai_status='PROCESSING', updated_at=NOW()
+        WHERE transaction_id IN (
+            SELECT transaction_id
+            FROM exceptions
+            WHERE ai_status='PENDING'
+            ORDER BY created_at
+            LIMIT 5
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING transaction_id, event_data
         """
     )
 
     rows = cursor.fetchall()
+    conn.commit()
 
     for tx_id, event_data in rows:
         try:

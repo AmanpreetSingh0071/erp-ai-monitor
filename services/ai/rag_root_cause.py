@@ -4,6 +4,7 @@ import json
 import re
 
 from langchain_community.document_loaders import TextLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
@@ -26,9 +27,20 @@ def build_vectorstore():
     loader = TextLoader(file_path)
     docs = loader.load()
 
+    # Split into one chunk per incident. Without this the whole knowledge base
+    # is a single document, so retrieval returns everything and the prompt
+    # carries ~2,700 tokens on every agent call.
+    splitter = RecursiveCharacterTextSplitter(
+        separators=["\nINCIDENT:", "\n=== ", "\n\n", "\n"],
+        chunk_size=600,
+        chunk_overlap=60,
+    )
+    chunks = splitter.split_documents(docs)
+    print(f"\U0001F4DA Knowledge base split into {len(chunks)} chunks")
+
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-    return FAISS.from_documents(docs, embeddings)
+    return FAISS.from_documents(chunks, embeddings)
 
 
 # -------------------------
@@ -40,7 +52,7 @@ def init_rag():
     start = time.time()
 
     VECTORSTORE = build_vectorstore()
-    RETRIEVER = VECTORSTORE.as_retriever()
+    RETRIEVER = VECTORSTORE.as_retriever(search_kwargs={"k": 3})
 
     print(f"✅ RAG initialized in {round(time.time() - start, 2)}s")
 
