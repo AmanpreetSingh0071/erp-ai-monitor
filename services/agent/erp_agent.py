@@ -71,7 +71,7 @@ def diagnose(state: AgentState) -> AgentState:
     if not api_key:
         raise Exception("GROQ_API_KEY NOT SET")
 
-    llm = ChatGroq(model="llama-3.1-8b-instant", api_key=api_key)
+    llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=api_key)
 
     prompt = f"""You are an ERP monitoring AI agent for enterprise integrations (Oracle NetSuite, SAP, EDI).
 

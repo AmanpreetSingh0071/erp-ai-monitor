@@ -1,0 +1,2 @@
+kb_size,case_id,expected,retrieved_vote,vote_correct,faithfulness,llm_context_precision_with_reference,context_recall,answer_relevancy
+60,EVAL-001,EDI_MAPPING_ERROR,EDI_MAPPING_ERROR,1,0.16666666666666666,0.9999999999666667,0.0,0.14659158520949925

@@ -95,7 +95,7 @@ def analyze_with_llm(event):
         raise Exception("GROQ_API_KEY NOT SET")
 
     llm = ChatGroq(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         api_key=api_key
     )
 

@@ -1,0 +1,2 @@
+kb_size,faithfulness,llm_context_precision_with_reference,context_recall,retrieval_vote_accuracy
+10,0.6236,0.1818,0.4697,0.5455

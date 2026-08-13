@@ -25,3 +25,7 @@ frontend/build/
 # Trained model (regenerate with train_anomaly_model.py)
 models/anomaly_model.pkl
 CLAUDE.md
+# RAGAS virtualenv — large and reinstallable
+evaluation/ragas_env/
+__pycache__/
+*.pyc
