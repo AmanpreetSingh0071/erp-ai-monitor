@@ -22,5 +22,5 @@ faiss-cpu==1.7.4
 python-dotenv==1.0.1
 langchain-huggingface==0.0.3
 sentence-transformers==2.7.0
-ttorch==2.2.2+cpu
+torch==2.2.2+cpu
 langchain-text-splitters>=0.2.0,<0.3.0
