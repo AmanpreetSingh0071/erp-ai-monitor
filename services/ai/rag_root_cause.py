@@ -41,7 +41,7 @@ def build_vectorstore():
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         model_kwargs={"device": "cpu"},
-        encode_kwargs={"batch_size": 4},
+        encode_kwargs={"batch_size": 1},
     )
 
     return FAISS.from_documents(chunks, embeddings)
