@@ -146,8 +146,51 @@ async def notify_clients():
 # -------------------------
 # AI PROCESS (LangGraph agent)
 # -------------------------
+def claim_transaction(transaction_id):
+    """Atomically take ownership of a transaction.
+
+    Returns True if this thread won the claim, False if another thread is
+    already processing it. This is the single gate for agent runs: both the
+    ingest path and the retry poller call run_ai(), so the claim has to live
+    here rather than in either caller.
+    """
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE exceptions
+            SET ai_status='PROCESSING', updated_at=NOW()
+            WHERE transaction_id=%s
+              AND (ai_status IS NULL OR ai_status='PENDING')
+            RETURNING transaction_id
+            """,
+            (transaction_id,),
+        )
+        won = cursor.fetchone() is not None
+        conn.commit()
+        return won
+    except Exception as e:
+        print(f"\u26a0\ufe0f  Claim failed for {transaction_id}: {e}")
+        # Fail open: better to risk a duplicate than to drop the work entirely.
+        return True
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
 def run_ai(transaction_id, event_dict):
     """Entry point for background threads — delegates to the LangGraph agent."""
+
+    # Single claim point. If another thread already owns this transaction we
+    # stop here rather than queueing behind the semaphore and re-running it.
+    if not claim_transaction(transaction_id):
+        print(f"⏭️  Skipping {transaction_id} — already being processed")
+        return
 
     print(f"🤖 Agent STARTED for {transaction_id}")
     with _agent_semaphore:
@@ -349,27 +392,21 @@ def retry_pending_ai():
         """
     )
 
-    # Claim rows atomically: mark them PROCESSING as we select them, so the
-    # next poll (10s later) does not spawn duplicate threads for work that is
-    # already queued behind the agent semaphore.
+    conn.commit()
+
+    # Plain select — run_ai() claims each row, so the poller does not need to.
+    # Anything already PROCESSING is skipped by the WHERE clause.
     cursor.execute(
         """
-        UPDATE exceptions
-        SET ai_status='PROCESSING', updated_at=NOW()
-        WHERE transaction_id IN (
-            SELECT transaction_id
-            FROM exceptions
-            WHERE ai_status='PENDING'
-            ORDER BY created_at
-            LIMIT 5
-            FOR UPDATE SKIP LOCKED
-        )
-        RETURNING transaction_id, event_data
+        SELECT transaction_id, event_data
+        FROM exceptions
+        WHERE ai_status='PENDING'
+        ORDER BY created_at
+        LIMIT 5
         """
     )
 
     rows = cursor.fetchall()
-    conn.commit()
 
     for tx_id, event_data in rows:
         try:
