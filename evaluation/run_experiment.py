@@ -372,13 +372,21 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-llm", action="store_true")
     ap.add_argument("--delay", type=float, default=5.0)
+    ap.add_argument("--ground-truth", default="ground_truth.csv",
+                    help="case set to evaluate. Use a separate file (e.g. "
+                         "realistic_validation.csv) to run a held-out set "
+                         "without touching the original results.")
     ap.add_argument("--model", default="llama-3.1-8b-instant",
                     help="Groq chat model for Config C (e.g. llama-3.3-70b-versatile, "
                          "openai/gpt-oss-120b)")
     args = ap.parse_args()
     safe_model = args.model.replace("/", "_").replace(":", "_")
 
-    cases = load_cases()
+    cases = load_cases(args.ground_truth)
+    # Namespace outputs by case set so a held-out run never overwrites the
+    # synthetic results already reported.
+    stem = os.path.splitext(os.path.basename(args.ground_truth))[0]
+    suffix = "" if stem == "ground_truth" else f"_{stem}"
     print(f"Loaded {len(cases)} ground-truth cases.")
     print(f"LLM for Config C: {args.model}")
     model = train_isolation_forest()
@@ -413,7 +421,7 @@ def main():
             calibration_summary(cases, route_c, conf_c)
 
             # per-case routing CSV (per-model filename)
-            routing_csv = f"results_routing_{safe_model}.csv"
+            routing_csv = f"results_routing_{safe_model}{suffix}.csv"
             with open(routing_csv, "w", newline="") as f:
                 w = csv.writer(f)
                 w.writerow(["case_id", "failure_category", "expected_routing",
@@ -428,7 +436,7 @@ def main():
     else:
         print("\n(Config C skipped via --no-llm)")
 
-    detection_csv = f"results_detection_{safe_model}.csv"
+    detection_csv = f"results_detection_{safe_model}{suffix}.csv"
     with open(detection_csv, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["configuration", "precision", "recall", "f1", "fpr",

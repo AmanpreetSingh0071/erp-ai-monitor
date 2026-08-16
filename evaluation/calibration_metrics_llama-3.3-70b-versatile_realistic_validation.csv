@@ -1,0 +1,2 @@
+model,N,accuracy,mean_confidence,overconfidence,ECE,MCE,Brier,AUROC,ECE_platt,Brier_platt,AUROC_platt
+llama-3.3-70b-versatile,24,0.3750,0.8079,0.4329,0.4438,0.4782,0.4101,0.5519,0.0000,0.2339,0.5519

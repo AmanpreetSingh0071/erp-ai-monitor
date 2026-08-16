@@ -1,0 +1,3 @@
+configuration,precision,recall,f1,fpr,TP,FP,FN,TN
+A_rules,0.9231,1.0000,0.9600,0.5000,24,2,0,2
+B_if_rules,1.0000,0.6667,0.8000,0.0000,16,0,8,4
