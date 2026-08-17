@@ -66,11 +66,9 @@ def init_rag():
 # -------------------------
 def extract_json(text):
     try:
-        # remove markdown if present
         text = text.strip()
         text = re.sub(r"```json|```", "", text).strip()
 
-        # find JSON block
         start = text.find("{")
         end = text.rfind("}") + 1
 

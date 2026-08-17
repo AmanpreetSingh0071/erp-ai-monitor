@@ -9,7 +9,7 @@ PROBLEM
     Only the poller claimed rows. The ingest path left the row at PENDING while
     the agent was running, so the very next poll saw it as unclaimed work and
     spawned a second thread for the same transaction. Both ran, both called the
-    LLM, and the row was processed twice — doubling token spend against the
+    LLM, and the row was processed twice, doubling token spend against the
     70B's 100k/day limit.
 
 FIX

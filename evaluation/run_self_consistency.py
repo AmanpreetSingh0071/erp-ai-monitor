@@ -1,6 +1,6 @@
 """
-RQ1 Extension — Self-Consistency Confidence
-===========================================
+RQ1 Extension: Self-Consistency Confidence
+==========================================
 Tests whether an AGREEMENT-based uncertainty signal discriminates correct from
 incorrect routing better than the model's SELF-REPORTED confidence (which was
 found non-discriminative, AUROC 0.46).
@@ -13,7 +13,7 @@ confidence signal.
 
 Hypothesis: cases the model answers consistently (e.g. 5/5) are more likely
 correct than cases it answers inconsistently (e.g. 2/5), so self-consistency
-should achieve AUROC > 0.5 — recovering discrimination that self-reported
+should achieve AUROC > 0.5, recovering discrimination that self-reported
 confidence lacked.
 
 Two possible findings, both defensible:

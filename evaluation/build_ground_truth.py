@@ -1,7 +1,7 @@
 """
 Ground Truth Evaluation Dataset Builder
 ========================================
-Generates ground_truth.csv — the labelled evaluation set for the
+Generates ground_truth.csv, the labelled evaluation set for the
 three-configuration experiment (RQ1, RQ2, RQ3).
 
 Design notes
@@ -30,7 +30,7 @@ INVESTIGATE    : pattern recognised but carries financial/data risk or
 ESCALATE       : high severity, novel, or repeated failure where
                  autonomous action is unsafe (e.g. credential revoked,
                  partner endpoint down repeatedly, critical SLA breach).
-NONE           : NORMAL cases — within acceptable thresholds, no action.
+NONE           : NORMAL cases, within acceptable thresholds, no action.
 """
 
 import csv

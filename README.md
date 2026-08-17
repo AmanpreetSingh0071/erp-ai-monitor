@@ -1,6 +1,6 @@
 # ERP AI Monitoring System
 
-An end-to-end AI-powered monitoring platform for ERP transactions that detects anomalies, performs root cause analysis using LLMs, and presents insights in a real-time dashboard.
+An end-to-end AI-powered monitoring platform for ERP transactions that detects anomalies, performs root cause analysis using LLMs and presents insights in a real-time dashboard.
 
 ## 🚀 Live Demo
 - Frontend: https://erp-ai-monitor.vercel.app  

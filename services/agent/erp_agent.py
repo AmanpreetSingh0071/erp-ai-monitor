@@ -122,7 +122,7 @@ Return this exact JSON structure with a numeric confidence_score between 0.00 an
         raw_score = parsed.get("confidence_score", 0.5)
         try:
             score = float(raw_score)
-            score = max(0.0, min(1.0, score))   # clamp to [0, 1]
+            score = max(0.0, min(1.0, score))
         except (TypeError, ValueError):
             score = 0.5
 
@@ -277,7 +277,7 @@ def run_agent(transaction_id: str, event: dict) -> dict:
     Run the full agent pipeline for one ERP event.
 
     Returns the final AgentState so callers can inspect routing_decision,
-    confidence_score, and diagnosis without hitting the DB again.
+    confidence_score and diagnosis without hitting the DB again.
 
     Raises if the agent is not initialized (init_agent() must be called first).
     """

@@ -1,6 +1,6 @@
 """
-RQ1 — Cross-Model Calibration Comparison
-========================================
+RQ1: Cross-Model Calibration Comparison
+=======================================
 Reads every calibration_metrics_<model>.csv in the folder and prints a
 side-by-side table, so the scale comparison (e.g. 8B vs 70B vs 120B) can be
 read at a glance. Run after calibration_analysis.py has been run for each model.
@@ -28,7 +28,6 @@ def main():
 
     cols = ["model", "N", "accuracy", "mean_confidence", "overconfidence",
             "ECE", "AUROC", "ECE_platt", "AUROC_platt"]
-    # header
     print(f"\n{'model':<26}{'N':>4}{'acc':>7}{'conf':>7}{'over':>7}"
           f"{'ECE':>7}{'AUROC':>7}{'ECE_pl':>8}{'AUROC_pl':>9}")
     print("-" * 88)

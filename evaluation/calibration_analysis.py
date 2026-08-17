@@ -1,6 +1,6 @@
 """
-RQ1 — Confidence Calibration Study
-==================================
+RQ1: Confidence Calibration Study
+=================================
 Turns the qualitative finding ("confidence does not separate correct from wrong")
 into a quantitative calibration analysis.
 

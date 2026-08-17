@@ -1,6 +1,6 @@
 """
-Three-Configuration Evaluation Runner  (v2 — improved RQ1 routing)
-==================================================================
+Three-Configuration Evaluation Runner  (v2: improved RQ1 routing)
+=================================================================
 Runs the 50-case ground truth set through three configurations and reports
 detection metrics (RQ3), routing accuracy with a confusion matrix (RQ1), and
 a confidence-calibration summary (RQ1 core question).

@@ -1,6 +1,6 @@
 """
-RQ1 — Confidence-Threshold Routing Analysis
-===========================================
+RQ1: Confidence-Threshold Routing Analysis
+==========================================
 Tests the routing mechanism RQ1 actually names: instead of letting the LLM pick
 a routing label, take its confidence score and apply thresholds:
 
@@ -11,7 +11,7 @@ a routing label, take its confidence score and apply thresholds:
 Compares fixed-threshold routing against the expected routing, prints a
 confusion matrix, then sweeps the AUTO_REMEDIATE threshold from 0.50 to 1.00 to
 show whether ANY threshold choice produces reliable routing. Pure analysis over
-the cached LLM responses — no API calls.
+the cached LLM responses: no API calls.
 
 Outputs:
   - console summary + confusion matrix

@@ -1,7 +1,7 @@
 # Research Findings Log
 
 **Project:** Autonomous ERP Integration Failure Detection and Diagnosis — A Hybrid Agentic Approach Combining Isolation Forest, Rule-Based Detection and Retrieval-Augmented Generation
-**Module:** 7COM1086 — MSc AI and Robotics Project
+**Module:** 7COM1086, MSc AI and Robotics Project
 **Author:** Amanpreet Ahluwalia (23089700)
 **Supervisor:** Vitoria Wilkinson
 
@@ -10,8 +10,8 @@
 ## How to use this log
 
 Append a new entry every time an experiment is run, a bug is fixed, or a design
-decision is made. Each entry records *what changed*, *the numbers*, and most
-importantly *what it taught* — the last part is what matters at IPR and viva.
+decision is made. Each entry records *what changed*, *the numbers* and most
+importantly *what it taught*: the last part is what matters at IPR and viva.
 Keep raw outputs in `evaluation/runs/<date>-<tag>/` so earlier results are never
 overwritten. Commit after each entry so the git log timestamps the progression.
 
@@ -30,8 +30,8 @@ Entry tags: `[INFRA]` engineering/deployment, `[RQ1]` routing & calibration,
 | 2026-06-05 | [INFRA] | Fixed missing load_dotenv (DATABASE_URL not read) |
 | 2026-06-05 | [INFRA] | Fixed WatchFiles infinite reload loop |
 | 2026-06-05 | [INFRA] | Fixed Render memory crash with concurrency semaphore |
-| 2026-06-07 | [RQ3] | Three-config detection results — clear precision/recall tradeoff |
-| 2026-06-07 | [RQ1] | Routing + calibration analysis — LLM confidence is uninformative |
+| 2026-06-07 | [RQ3] | Three-config detection results: clear precision/recall tradeoff |
+| 2026-06-07 | [RQ1] | Routing + calibration analysis: LLM confidence is uninformative |
 | 2026-06-08 | [ADMIN] | DPP submitted on Canvas with project plan |
 | 2026-06-08 | [RQ1] | Confidence-threshold routing also fails (45.5%); ESCALATE unreachable |
 | 2026-06-13 | [ADMIN] | Supervisor DPP feedback: Gantt with parallel activities, in-text citations, artefact due at FPR |
@@ -44,7 +44,7 @@ Entry tags: `[INFRA]` engineering/deployment, `[RQ1]` routing & calibration,
 
 ## Entries
 
-### 2026-06-03 — [ADMIN] DPP finalised and dataset point clarified
+### 2026-06-03: [ADMIN] DPP finalised and dataset point clarified
 **Context.** Supervisor confirmed the topic direction is suitable. Her one query
 was whether the 50-scenario dataset was large enough for *training*.
 **Action.** Clarified in the methodology that the 50 cases are an *evaluation*
@@ -58,7 +58,7 @@ explicit in every later writeup, or the dataset size invites criticism.
 
 ---
 
-### 2026-06-04 — [INFRA] LangGraph agent built
+### 2026-06-04: [INFRA] LangGraph agent built
 **Action.** Implemented a 4-node graph: retrieve_context → diagnose →
 route_decision → log_to_db. Routing thresholds: ≥0.85 AUTO_REMEDIATE,
 ≥0.60 INVESTIGATE, <0.60 ESCALATE.
@@ -67,7 +67,7 @@ thresholds are a design parameter to be justified, not a given.
 
 ---
 
-### 2026-06-04 — [INFRA] Bug: RETRIEVER imported as None
+### 2026-06-04: [INFRA] Bug: RETRIEVER imported as None
 **Symptom.** `'NoneType' object has no attribute 'invoke'` on every agent run.
 **Cause.** `from rag_root_cause import RETRIEVER` copied the value at import
 time, before `init_rag()` had assigned it, so the agent held a stale `None`.
@@ -79,7 +79,7 @@ chapter on initialisation ordering in the agent pipeline.
 
 ---
 
-### 2026-06-05 — [INFRA] Bug: DATABASE_URL not set
+### 2026-06-05: [INFRA] Bug: DATABASE_URL not set
 **Symptom.** DB migration and worker failed with "DATABASE_URL not set" despite
 a populated `.env`.
 **Cause.** `load_dotenv()` was missing from the backend entry point, so the
@@ -89,7 +89,7 @@ a populated `.env`.
 
 ---
 
-### 2026-06-05 — [INFRA] Bug: WatchFiles infinite reload loop
+### 2026-06-05: [INFRA] Bug: WatchFiles infinite reload loop
 **Symptom.** Server restarted continuously; RAG re-initialised every few seconds.
 **Cause.** `--reload` watched the whole tree including `.venv`; dependency files
 (and HuggingFace model downloads) triggered endless reloads.
@@ -99,7 +99,7 @@ with `--reload-dir backend --reload-dir services --reload-dir configs`.
 
 ---
 
-### 2026-06-05 — [INFRA] Bug: Render instance crash under load
+### 2026-06-05: [INFRA] Bug: Render instance crash under load
 **Symptom.** Live backend (Render free tier, 512 MB) died after ~3 concurrent
 transactions; RAG retrieval time spiked from <2 s to ~38 s before the instance
 was killed and restarted.
@@ -112,7 +112,7 @@ tier with ≥2 GB would remove the constraint for a live demo.
 
 ---
 
-### 2026-06-07 — [RQ3] Three-configuration detection results
+### 2026-06-07: [RQ3] Three-configuration detection results
 **Setup.** 50-case labelled ground truth (44 anomalies across 6 failure
 categories + 6 normals, of which 3 are "noisy" false-positive traps that trip a
 rule threshold but are benign). Isolation Forest trained on a synthetic normal
@@ -122,9 +122,9 @@ distribution shaped as an L-region (low retry OR low delay = normal).
 
 | Config | Precision | Recall | F1 | FPR |
 |--------|-----------|--------|------|------|
-| A — rules only | 93.6% | 100.0% | 96.7% | 50.0% |
-| B — IF + rules | 100.0% | 72.7% | 84.2% | 0.0% |
-| C — full agent | 95.7% | 100.0% | **97.8%** | 33.3% |
+| A: rules only | 93.6% | 100.0% | 96.7% | 50.0% |
+| B: IF + rules | 100.0% | 72.7% | 84.2% | 0.0% |
+| C: full agent | 95.7% | 100.0% | **97.8%** | 33.3% |
 
 **Learned.**
 - Rules alone maximise recall but over-flag: hard thresholds cannot tell a benign
@@ -142,7 +142,7 @@ distribution shaped as an L-region (low retry OR low delay = normal).
 
 ---
 
-### 2026-06-07 — [RQ1] Routing and confidence-calibration analysis
+### 2026-06-07: [RQ1] Routing and confidence-calibration analysis
 **Setup.** Config C routing compared against expected routing; added a 3×3
 confusion matrix and a confidence-calibration check. Two prompt versions tested:
 v1 (abstract rules) and v2 (few-shot worked examples).
@@ -169,11 +169,11 @@ Confidence calibration (v2): mean confidence when CORRECT = 0.87, when WRONG =
 **Learned.**
 - The accuracy rise from 30%→46% is misleading. The model did not improve; it
   swapped which bucket it over-uses, anchoring on whichever class the prompt
-  foregrounds. The ESCALATE column is all zeros in *both* versions — the agent
+  foregrounds. The ESCALATE column is all zeros in *both* versions: the agent
   never escalates.
 - Confidence carries no signal: it reports ~0.87–0.88 whether right or wrong, so
   thresholding on confidence cannot separate good decisions from bad ones.
-- Most serious: 9 cases that should ESCALATE were routed to AUTO_REMEDIATE —
+- Most serious: 9 cases that should ESCALATE were routed to AUTO_REMEDIATE,
   i.e. the system would autonomously act on revoked credentials and a 3-hour
   peak outage. This is the worst real-world failure mode and belongs in the
   discussion of autonomous-routing risk.
@@ -183,13 +183,13 @@ Confidence calibration (v2): mean confidence when CORRECT = 0.87, when WRONG =
   finding, not a failure to hide.
 **Artefacts.** `results_routing.csv`, confusion matrix above.
 **Next.** Test threshold-based routing directly (apply 0.85/0.60 thresholds to
-the confidence score) to confirm — as predicted — that it also fails, completing
+the confidence score) to confirm, as predicted, that it also fails, completing
 the RQ1 argument. Consider a larger model or an explicit calibration step as a
 comparison point.
 
 ---
 
-### 2026-06-08 — [ADMIN] DPP submitted on Canvas
+### 2026-06-08: [ADMIN] DPP submitted on Canvas
 **Context.** Supervisor confirmed the DPP was fine to submit and suggested adding
 a basic project plan with timescales, milestones and deliverables.
 **Action.** Added a short project plan (intro paragraph plus a phase/date/
@@ -203,7 +203,7 @@ reflection does carry weight.
 
 ---
 
-### 2026-06-08 — [RQ1] Confidence-threshold routing experiment
+### 2026-06-08: [RQ1] Confidence-threshold routing experiment
 **Context.** Routing accuracy was being measured by letting the LLM pick a label
 directly. RQ1 actually asks about routing on a confidence *threshold*, which had
 not yet been tested as a distinct mechanism.
@@ -213,13 +213,13 @@ scores, discard the LLM's self-chosen label, and apply thresholds
 a confusion matrix, then swept the AUTO threshold from 0.50 to 1.00. Pure
 analysis over the cache, no new API calls.
 **Result (real run, N=44 anomalies).**
-- Fixed thresholds (0.85/0.60): 45.5% accuracy (20/44) — indistinguishable from
+- Fixed thresholds (0.85/0.60): 45.5% accuracy (20/44), indistinguishable from
   the 45.7% the LLM scored choosing its own label.
 - ESCALATE produced: 0. No confidence value ever fell below 0.60, so the escalate
   branch is structurally unreachable.
 - Sweep 0.50→1.00: accuracy stayed in the 34.1%–45.5% band, best 45.5% at 0.825.
 - Confusion matrix (rows expected, cols predicted): AUTO 14/2/0, INVESTIGATE
-  9/6/0, ESCALATE 9/4/0 — 13 escalate-needed cases sent to auto-remediate or
+  9/6/0, ESCALATE 9/4/0: 13 escalate-needed cases sent to auto-remediate or
   investigate, none escalated.
 **Learned.** The two routing mechanisms perform identically, so the routing rule
 was never the problem. The signal is. No threshold choice rescues the approach;
@@ -231,15 +231,15 @@ results_threshold_routing.csv.
 
 ---
 
-### 2026-06-13 — [ADMIN] Supervisor DPP feedback received
+### 2026-06-13: [ADMIN] Supervisor DPP feedback received
 **Context.** Individual DPP feedback came back through Canvas (and by email). The
-verdict was positive — the RQs, aims and methodology were described as clear and
+verdict was positive: the RQs, aims and methodology were described as clear and
 specific, and a strong start.
 **Action.** Noted three points to carry into the IPR and FPR. First, the project
 plan should use a Gantt chart that shows parallel activities (for example drafting
 the report alongside the practical work) rather than a strict waterfall. Second,
 the artefact only needs to be complete by the FPR on 1 September, not the IPR on
-20 July — the IPR reports progress so far plus the plan to completion. Third,
+20 July: the IPR reports progress so far plus the plan to completion. Third,
 there is a difference between references and citations: the reference list is fine
 but the body needs in-text Harvard citations. Co-authorship on a future paper was
 raised and the supervisor will check UH rules later.
@@ -251,7 +251,7 @@ drafting the IPR.
 
 ---
 
-### 2026-06-20 — [RQ1] Confidence calibration study
+### 2026-06-20: [RQ1] Confidence calibration study
 **Context.** The qualitative finding ("confidence does not separate correct from
 wrong") needed to be made quantitative and grounded in calibration theory.
 **Action.** Built calibration_analysis.py: Expected and Maximum Calibration
@@ -263,7 +263,7 @@ provide, so Platt is the appropriate scalar method.
 **Result (real run, N=46).**
 - Accuracy 45.7%, mean confidence 87.4% → overconfidence +41.7 points.
 - ECE 0.417, MCE 0.547, Brier 0.429 (well-calibrated is ECE < 0.05).
-- AUROC 0.461 — below 0.5: confidence is, if anything, faintly anti-correlated
+- AUROC 0.461, below 0.5: confidence is, if anything, faintly anti-correlated
   with correctness.
 - Reliability diagram non-monotonic: the 0.90-confidence cluster had the *lowest*
   accuracy (31.8%).
@@ -271,7 +271,7 @@ provide, so Platt is the appropriate scalar method.
   logistic slope negative.
 **Learned.** Calibration (scale) and discrimination (ranking) are distinct. Platt
 scaling is a monotonic transform, so it can drive calibration error to zero but
-cannot manufacture discrimination that is absent — proven empirically by ECE→0
+cannot manufacture discrimination that is absent, proven empirically by ECE→0
 while AUROC stays ~0.5. The deficit is intrinsic to the small model's confidence
 signal, not a fixable scaling artefact. This is why routing on its confidence is
 unsafe at any threshold.
@@ -283,7 +283,7 @@ confidence_histogram.png, calibration_metrics.csv.
 
 ---
 
-### 2026-06-20 — [RQ2] RAG diagnosis vs rule baseline, and knowledge-base size
+### 2026-06-20: [RQ2] RAG diagnosis vs rule baseline, and knowledge-base size
 **Context.** RQ2 asks whether RAG-grounded diagnosis beats rule-based diagnosis,
 and at what knowledge-base size RAG begins to help (DPP specified 10/30/50).
 **Action.** Built run_rag_experiment.py with a 60-incident labelled knowledge
@@ -294,13 +294,13 @@ majority-category vote, averaged over 5 random seeds. Random-choice (1/6) and
 majority-class baselines stand in for rule-based diagnosis, which cannot identify
 category from numeric retry/delay signals.
 **Result (mean over 5 seeds).**
-- Rule baselines: random 16.7%, majority class 18.2% — i.e. at chance.
+- Rule baselines: random 16.7%, majority class 18.2%, i.e. at chance.
 - RAG accuracy by KB size: 10→50.0%, 20→62.2%, 30→73.5%, 40→79.5%, 50→79.0%,
   60→81.4%.
 - Marginal gain per +10 incidents: 10→20 +12.3, 20→30 +11.4, 30→40 +5.9, then
   flat. Clear knee at KB ≈ 30–40.
 - Error bars shrink as KB grows (±4.3 at 10 → ±0.9 at 60).
-**Learned.** For diagnosis, RAG is not a marginal gain over rules — it is the
+**Learned.** For diagnosis, RAG is not a marginal gain over rules: it is the
 difference between chance (18%) and 79%, because rules cannot distinguish failure
 *types* from numeric signals. Returns diminish sharply past ~30 incidents, so
 knowledge-base curation effort has a natural stopping point. Small knowledge
@@ -314,7 +314,7 @@ pipeline.
 
 ---
 
-### 2026-06-25 — [RQ1] Self-consistency confidence extension
+### 2026-06-25: [RQ1] Self-consistency confidence extension
 **Context.** Since the model's self-reported confidence is non-discriminative,
 tested whether an agreement-based signal (Wang et al., 2022, self-consistency)
 does better: query the model K times at temperature > 0 and measure how often it
@@ -330,7 +330,7 @@ restricted to decisions the model can represent (AUTO_REMEDIATE vs INVESTIGATE).
 - Two-class scoped (31 cases): accuracy 61.3%, AUROC 0.566, steeper ladder
   0.60→56.2%, 0.80→62.5%, 1.00→71.4%.
 - Entropy variant gave identical AUROC because no case ever produced a three-way
-  split — the model's uncertainty is always binary.
+  split: the model's uncertainty is always binary.
 - ESCALATE was sampled exactly once across all 220 samples.
 **Learned.** Agreement-based confidence carries more signal than self-reported
 confidence (AUROC 0.46 → 0.55), and within the model's representational capacity
@@ -341,14 +341,14 @@ represent ESCALATE, and its disagreement is never diffuse across all three
 actions. Combined with the calibration study and the threshold sweep, RQ1 is now
 answered from three independent angles, all pointing to the same conclusion.
 **Caveats (for limitations).** K=5 gives only five distinct agreement levels;
-two-class scoping reduces N to 31. No results-hacking — the full ablation
+two-class scoping reduces N to 31. No results-hacking: the full ablation
 (all-cases, scoped, entropy) is reported together.
 **Artefacts.** run_self_consistency.py, results_self_consistency.csv,
 self_consistency_curve.png.
 
 ---
 
-### 2026-06-26 — [RQ1] Model scale comparison (8B vs 70B)
+### 2026-06-26: [RQ1] Model scale comparison (8B vs 70B)
 **Context.** Every RQ1 result so far used llama-3.1-8b-instant. The obvious
 question a reader would ask is whether the calibration failure is just a
 small-model weakness that a bigger model fixes. To answer it, the Config C and
@@ -372,9 +372,9 @@ roughly nine times the parameter count.
   in both. The reliability table stayed non-monotonic, and Platt scaling again
   drove ECE to 0.000 while leaving AUROC unchanged.
 - Routing accuracy actually fell to 38.6% because the 70B collapsed 40 of 44
-  cases into INVESTIGATE — a bucket-collapse effect, not worse discrimination.
-**Learned.** Scale fixes *capability* — semantic detection became perfect and the
-model could finally represent escalation — but it does almost nothing for
+  cases into INVESTIGATE: a bucket-collapse effect, not worse discrimination.
+**Learned.** Scale fixes *capability*: semantic detection became perfect and the
+model could finally represent escalation. But it does almost nothing for
 *self-knowledge*. The confidence-calibration failure persists, near-identically,
 across a 9× increase in model size. This is the strong form of the RQ1 finding:
 the inability to self-assess confidence reliably is intrinsic to LLM

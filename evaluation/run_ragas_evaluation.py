@@ -1,16 +1,16 @@
 """
-RQ2 extension — RAGAS evaluation of the RAG diagnosis pipeline
-==============================================================
+RQ2 extension: RAGAS evaluation of the RAG diagnosis pipeline
+=============================================================
 Re-expresses the RQ2 knowledge-base-size finding in the standard RAG evaluation
 metrics (RAGAS) rather than only bespoke diagnostic accuracy.
 
 Metrics
 -------
-  faithfulness        — is the generated diagnosis grounded in the retrieved
+  faithfulness        : is the generated diagnosis grounded in the retrieved
                         incidents, or does the model invent detail?
-  answer_relevancy    — does the diagnosis actually address the error signature?
-  context_precision   — of the incidents retrieved, how many were relevant?
-  context_recall      — did retrieval surface the incidents needed to answer?
+  answer_relevancy    : does the diagnosis actually address the error signature?
+  context_precision   : of the incidents retrieved, how many were relevant?
+  context_recall      : did retrieval surface the incidents needed to answer?
 
 context_precision and context_recall speak directly to RQ2: if the KB-size curve
 plateaus because retrieval recall saturates, these metrics show it explicitly.
@@ -86,7 +86,7 @@ def flatten_kb(KB):
 
 
 def load_eval(path, categories):
-    """Anomaly cases only — same filter as run_rag_experiment.py."""
+    """Anomaly cases only: same filter as run_rag_experiment.py."""
     cases = []
     with open(path) as f:
         for r in csv.DictReader(f):

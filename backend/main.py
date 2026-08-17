@@ -184,7 +184,7 @@ def claim_transaction(transaction_id):
 
 
 def run_ai(transaction_id, event_dict):
-    """Entry point for background threads — delegates to the LangGraph agent."""
+    """Entry point for background threads: delegates to the LangGraph agent."""
 
     # Single claim point. If another thread already owns this transaction we
     # stop here rather than queueing behind the semaphore and re-running it.
@@ -374,7 +374,7 @@ def simulate_events():
 
 
 # -------------------------
-# RETRY WORKER (FIXED)
+# RETRY WORKER
 # -------------------------
 def retry_pending_ai():
     print("🔄 Checking pending AI jobs...")
@@ -394,7 +394,7 @@ def retry_pending_ai():
 
     conn.commit()
 
-    # Plain select — run_ai() claims each row, so the poller does not need to.
+    # Plain select: run_ai() claims each row, so the poller does not need to.
     # Anything already PROCESSING is skipped by the WHERE clause.
     cursor.execute(
         """
@@ -415,7 +415,6 @@ def retry_pending_ai():
             if not event_data:
                 continue
 
-            # ✅ FIX HERE
             if isinstance(event_data, str):
                 event_dict = json.loads(event_data)
             else:
