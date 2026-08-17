@@ -47,24 +47,34 @@ active_connections = []
 def startup_event():
     global model
 
-    print("🔄 Loading ML model...")
+    print("🔄 Training detection model...")
 
+    # Trained in-process rather than loaded from a pickle. Training is
+    # deterministic (seed 42) and takes milliseconds, so the served model is
+    # provably the one described in Section 3.3 and Appendix B, rather than
+    # whatever pickle happens to be present. It also removes a scikit-learn
+    # version coupling between the training machine and the deployment.
     try:
-        model_path = os.path.join(
+        import importlib.util
+
+        _tam_path = os.path.join(
             os.path.dirname(__file__),
             "..",
             "models",
-            "anomaly_model.pkl"
+            "train_anomaly_model.py",
+        )
+        _spec = importlib.util.spec_from_file_location("train_anomaly_model", _tam_path)
+        _tam = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_tam)
+
+        model, _samples = _tam.train()
+        print(
+            f"✅ Model trained: L-region, {_tam.N_SAMPLES} samples, "
+            f"{_tam.N_ESTIMATORS} estimators, seed {_tam.RANDOM_SEED}"
         )
 
-        if os.path.exists(model_path):
-            model = joblib.load(model_path)
-            print("✅ Model loaded")
-        else:
-            print("⚠️ Model missing")
-
     except Exception as e:
-        print("❌ Model load error:", e)
+        print("❌ Model training error:", e)
 
     try:
         print("🔄 Initializing RAG...")

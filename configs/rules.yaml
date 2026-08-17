@@ -5,4 +5,4 @@ rules:
 
   - name: HIGH_RETRY
     field: retry_count
-    threshold: 5
+    threshold: 3
