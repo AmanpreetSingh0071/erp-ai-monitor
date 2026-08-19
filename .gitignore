@@ -29,3 +29,6 @@ CLAUDE.md
 evaluation/ragas_env/
 __pycache__/
 *.pyc
+# Virtual environments
+venv/
+.venv/
