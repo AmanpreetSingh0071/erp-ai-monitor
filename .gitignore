@@ -35,3 +35,6 @@ venv/
 
 # Environment setup: patches a dependency inside the RAGAS virtualenv
 evaluation/fix_ragas_vertexai.py
+
+# Trained model binaries
+models/*.pkl

@@ -1,3 +1,17 @@
+"""
+SUPERSEDED. Not part of the running system.
+
+An earlier Kafka-based processing path, kept as a record of the design
+decision described in the findings log. The deployed system uses in-process
+background threads in backend/main.py instead. This module is not imported
+anywhere and requires kafka, which is not in requirements.txt, so it cannot
+run as shipped.
+
+The detector is now trained in-process from models/train_anomaly_model.py
+rather than loaded from a pickle, so that the served model provably matches
+the parameters documented in Appendix B.
+"""
+
 import joblib
 import pandas as pd
 import psycopg2
@@ -14,7 +28,16 @@ from urllib.parse import urlparse
 # -------------------------
 # Load ML model (once)
 # -------------------------
-model = joblib.load("models/anomaly_model.pkl")
+import importlib.util as _ilu
+
+_spec = _ilu.spec_from_file_location(
+    "train_anomaly_model",
+    os.path.join(os.path.dirname(__file__), "..", "..", "models",
+                 "train_anomaly_model.py"),
+)
+_tam = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_tam)
+model, _ = _tam.train()
 
 
 # -------------------------
