@@ -485,7 +485,7 @@ which changes the risk profile without changing the conclusion.
 **Caveats (for limitations).** The set is synthetic, built from documented error
 formats rather than sampled from production incidents. N=24 is small, and the 0.92
 and 0.95 bins hold one correct case each, which is noise rather than evidence.
-**Artefacts.** realistic_validation.csv, add_ground_truth_flag.py,
+**Artefacts.** realistic_validation.csv, scripts/migrations/add_ground_truth_flag.py,
 runs/2026-08-16-realistic-validation/.
 
 ---
@@ -550,8 +550,8 @@ a demonstrator that quietly drifted. The reported results were never at risk, bu
 examiner opening the files named in the manifest would have found them disagreeing
 with the parameters table. Worth checking the artefact against the report, not just
 the report against itself.
-**Artefacts.** models/train_anomaly_model.py, fix_artefact_report_mismatch.py,
-fix_train_at_startup.py.
+**Artefacts.** models/train_anomaly_model.py, scripts/migrations/fix_artefact_report_mismatch.py,
+scripts/migrations/fix_train_at_startup.py.
 
 ---
 
