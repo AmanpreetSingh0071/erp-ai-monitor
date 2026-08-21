@@ -36,7 +36,7 @@ def build_vectorstore():
         chunk_overlap=60,
     )
     chunks = splitter.split_documents(docs)
-    print(f"\U0001F4DA Knowledge base split into {len(chunks)} chunks")
+    print(f"Knowledge base split into {len(chunks)} chunks")
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -58,7 +58,7 @@ def init_rag():
     VECTORSTORE = build_vectorstore()
     RETRIEVER = VECTORSTORE.as_retriever(search_kwargs={"k": 3})
 
-    print(f"✅ RAG initialized in {round(time.time() - start, 2)}s")
+    print(f"OK: RAG initialized in {round(time.time() - start, 2)}s")
 
 
 # -------------------------
@@ -76,7 +76,7 @@ def extract_json(text):
             return json.loads(text[start:end])
 
     except Exception as e:
-        print("⚠️ JSON extraction failed:", e)
+        print("WARNING: JSON extraction failed:", e)
 
     return None
 
@@ -145,10 +145,10 @@ FORMAT:
     llm_time = round(time.time() - start_llm, 2)
     total_time = round(time.time() - start_total, 2)
 
-    print(f"📊 RAG: {rag_time}s | LLM: {llm_time}s | TOTAL: {total_time}s")
+    print(f"RAG: {rag_time}s | LLM: {llm_time}s | TOTAL: {total_time}s")
 
     raw_output = response.content
-    print("🧠 RAW LLM OUTPUT:", raw_output)
+    print("RAW LLM OUTPUT:", raw_output)
 
     # -------- SAFE PARSE ----------
     parsed = extract_json(raw_output)
@@ -164,7 +164,7 @@ FORMAT:
         }
 
     # -------- FALLBACK ----------
-    print("⚠️ Using fallback response")
+    print("WARNING: Using fallback response")
 
     return {
         "root_cause": raw_output.strip(),

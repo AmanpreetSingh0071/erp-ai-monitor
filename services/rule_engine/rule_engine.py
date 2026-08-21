@@ -10,7 +10,7 @@ BASE_DIR = os.path.abspath(
 
 rules_path = os.path.join(BASE_DIR, "configs", "rules.yaml")
 
-print("📄 Rules path:", rules_path)
+print("Rules path:", rules_path)
 print("Exists:", os.path.exists(rules_path))
 
 # -------------------------

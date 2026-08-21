@@ -242,7 +242,7 @@ def main():
             "samples": "|".join(samples),
         })
         print(f"  {c['case_id']}: {dict(counts)} -> modal={modal} "
-              f"consistency={consistency:.2f} {'✓' if correct else '✗'}")
+              f"consistency={consistency:.2f} {'correct' if correct else 'wrong'}")
 
     # Metrics
     cons = [r["consistency"] for r in rows]
@@ -343,7 +343,7 @@ def main():
                   "rising bars = agreement tracks correctness")
         plt.ylim(0, 105); plt.grid(axis="y", alpha=0.3)
         plt.tight_layout(); plt.savefig("self_consistency_curve.png", dpi=150)
-        print("\n✅ Wrote results_self_consistency.csv and self_consistency_curve.png")
+        print("\nOK: Wrote results_self_consistency.csv and self_consistency_curve.png")
     except Exception as e:
         print(f"\n(plot skipped: {e})")
 

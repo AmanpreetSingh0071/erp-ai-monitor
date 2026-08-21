@@ -74,7 +74,7 @@ function App() {
 
   const simulateTraffic = async () => {
     await axios.post(`${API}/simulate`);
-    alert("🚀 Traffic simulated");
+    alert("Traffic simulated");
     fetchData();
   };
 
@@ -87,20 +87,20 @@ function App() {
 
       <div style={toggleContainer}>
         <button onClick={() => setDarkMode(!darkMode)} style={toggleBtn}>
-          {darkMode ? "🌙" : "☀️"}
+          {darkMode ? "Dark" : "Light"}
         </button>
       </div>
 
       <h1 style={{ color: theme.text }}>ERP AI Monitoring</h1>
 
-      {error && <div style={errorBox}>⚠️ {error}</div>}
+      {error && <div style={errorBox}>WARNING: {error}</div>}
 
       <div style={{ marginTop: 15 }}>
         <button onClick={startBackend} style={button}>
-          🚀 Start Backend
+          Start Backend
         </button>
         <button onClick={simulateTraffic} style={{ ...simulateBtn, marginLeft: 10 }}>
-          ⚡ Simulate Traffic
+          Simulate Traffic
         </button>
       </div>
 

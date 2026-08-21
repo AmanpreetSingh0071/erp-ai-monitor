@@ -56,7 +56,7 @@ def retrieve_context(state: AgentState) -> AgentState:
     state["rag_context"] = "\n".join([d.page_content for d in docs])
     state["timing"] = {"rag_time": rag_time}
 
-    print(f"📚 RAG retrieved {len(docs)} docs in {rag_time}s")
+    print(f"RAG retrieved {len(docs)} docs in {rag_time}s")
     return state
 
 
@@ -110,8 +110,8 @@ Return this exact JSON structure with a numeric confidence_score between 0.00 an
     response = llm.invoke(prompt)
     llm_time = round(time.time() - start, 2)
 
-    print(f"🧠 LLM responded in {llm_time}s")
-    print(f"🧠 RAW LLM OUTPUT: {response.content}")
+    print(f"LLM responded in {llm_time}s")
+    print(f"RAW LLM OUTPUT: {response.content}")
 
     parsed = extract_json(response.content)
 
@@ -135,7 +135,7 @@ Return this exact JSON structure with a numeric confidence_score between 0.00 an
         state["confidence_score"] = score
     else:
         # Fallback: treat entire response as root_cause with low confidence
-        print("⚠️ JSON parse failed — using fallback diagnosis")
+        print("WARNING: JSON parse failed — using fallback diagnosis")
         state["diagnosis"] = {
             "root_cause": response.content.strip(),
             "impact": "Potential SLA breach or system delay",
@@ -162,7 +162,7 @@ def route_decision(state: AgentState) -> AgentState:
         decision = "ESCALATE"
 
     state["routing_decision"] = decision
-    print(f"🔀 Routed → {decision} (confidence={score:.2f})")
+    print(f"Routed → {decision} (confidence={score:.2f})")
     return state
 
 
@@ -210,10 +210,10 @@ def log_to_db(state: AgentState) -> AgentState:
         )
 
         conn.commit()
-        print(f"✅ Agent DB update DONE for {tx_id}")
+        print(f"OK: Agent DB update DONE for {tx_id}")
 
     except Exception as e:
-        print(f"❌ log_to_db failed for {tx_id}: {e}")
+        print(f"ERROR: log_to_db failed for {tx_id}: {e}")
         try:
             if conn and cursor:
                 cursor.execute(
@@ -228,7 +228,7 @@ def log_to_db(state: AgentState) -> AgentState:
                 )
                 conn.commit()
         except Exception as fallback_err:
-            print(f"❌ Fallback DB update also failed: {fallback_err}")
+            print(f"ERROR: Fallback DB update also failed: {fallback_err}")
 
     finally:
         if cursor:
@@ -269,7 +269,7 @@ def init_agent():
     """Build and compile the LangGraph agent. Call once at startup after init_rag()."""
     global AGENT
     AGENT = _build_graph()
-    print("✅ LangGraph agent initialized")
+    print("OK: LangGraph agent initialized")
 
 
 def run_agent(transaction_id: str, event: dict) -> dict:
@@ -300,7 +300,7 @@ def run_agent(transaction_id: str, event: dict) -> dict:
 
     total = round(time.time() - start, 2)
     print(
-        f"🤖 Agent DONE for {transaction_id} | "
+        f"Agent DONE for {transaction_id} | "
         f"decision={final_state['routing_decision']} | "
         f"confidence={final_state['confidence_score']:.2f} | "
         f"total={total}s"

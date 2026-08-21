@@ -345,7 +345,7 @@ def build():
     routes = Counter(r["expected_routing"] for r in rows)
     det = Counter(r["expected_detection"] for r in rows)
 
-    print(f"✅ Wrote ground_truth.csv with {len(rows)} cases\n")
+    print(f"OK: Wrote ground_truth.csv with {len(rows)} cases\n")
     print("By failure category:")
     for k, v in sorted(cats.items()):
         print(f"  {k:<24} {v}")

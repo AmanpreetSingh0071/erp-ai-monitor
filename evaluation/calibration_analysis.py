@@ -208,7 +208,7 @@ def main():
                      "(correct and wrong decisions occupy the same confidence range)")
         ax.legend(); ax.grid(alpha=0.3)
         plt.tight_layout(); plt.savefig(f"confidence_histogram_{safe}.png", dpi=150)
-        print(f"\n✅ Wrote reliability_diagram_{safe}.png, confidence_histogram_{safe}.png, calibration_metrics_{safe}.csv")
+        print(f"\nOK: Wrote reliability_diagram_{safe}.png, confidence_histogram_{safe}.png, calibration_metrics_{safe}.csv")
     except Exception as e:
         print(f"\n(plots skipped: {e})")
 

@@ -12,7 +12,7 @@ import random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-print("🚀 APP STARTING...")
+print("APP STARTING...")
 
 from fastapi import FastAPI, BackgroundTasks, WebSocket
 from backend.database import get_connection
@@ -47,7 +47,7 @@ active_connections = []
 def startup_event():
     global model
 
-    print("🔄 Training detection model...")
+    print("Training detection model...")
 
     # Trained in-process rather than loaded from a pickle. Training is
     # deterministic (seed 42) and takes milliseconds, so the served model is
@@ -69,25 +69,25 @@ def startup_event():
 
         model, _samples = _tam.train()
         print(
-            f"✅ Model trained: L-region, {_tam.N_SAMPLES} samples, "
+            f"OK: Model trained: L-region, {_tam.N_SAMPLES} samples, "
             f"{_tam.N_ESTIMATORS} estimators, seed {_tam.RANDOM_SEED}"
         )
 
     except Exception as e:
-        print("❌ Model training error:", e)
+        print("ERROR: Model training error:", e)
 
     try:
-        print("🔄 Initializing RAG...")
+        print("Initializing RAG...")
         init_rag()
-        print("✅ RAG ready")
+        print("OK: RAG ready")
     except Exception as e:
-        print("❌ RAG init failed:", e)
+        print("ERROR: RAG init failed:", e)
 
     try:
-        print("🔄 Initializing LangGraph agent...")
+        print("Initializing LangGraph agent...")
         init_agent()
     except Exception as e:
-        print("❌ Agent init failed:", e)
+        print("ERROR: Agent init failed:", e)
 
     # Ensure agent columns exist (idempotent migration)
     try:
@@ -101,9 +101,9 @@ def startup_event():
         _conn.commit()
         _cur.close()
         _conn.close()
-        print("✅ DB columns verified")
+        print("OK: DB columns verified")
     except Exception as e:
-        print("❌ DB migration failed:", e)
+        print("ERROR: DB migration failed:", e)
 
     def background_worker():
         retry_delay = 10
@@ -114,7 +114,7 @@ def startup_event():
                 retry_delay = 10
 
             except Exception as e:
-                print("❌ Worker error:", e)
+                print("ERROR: Worker error:", e)
                 retry_delay = min(retry_delay * 2, 300)  # exponential backoff (max 5 min)
 
             time.sleep(retry_delay)
@@ -183,7 +183,7 @@ def claim_transaction(transaction_id):
         conn.commit()
         return won
     except Exception as e:
-        print(f"\u26a0\ufe0f  Claim failed for {transaction_id}: {e}")
+        print(f"WARNING: Claim failed for {transaction_id}: {e}")
         # Fail open: better to risk a duplicate than to drop the work entirely.
         return True
     finally:
@@ -199,17 +199,17 @@ def run_ai(transaction_id, event_dict):
     # Single claim point. If another thread already owns this transaction we
     # stop here rather than queueing behind the semaphore and re-running it.
     if not claim_transaction(transaction_id):
-        print(f"⏭️  Skipping {transaction_id} — already being processed")
+        print(f"Skipping {transaction_id} — already being processed")
         return
 
-    print(f"🤖 Agent STARTED for {transaction_id}")
+    print(f"Agent STARTED for {transaction_id}")
     with _agent_semaphore:
 
         try:
             run_agent(transaction_id, event_dict)
 
         except Exception as e:
-            print(f"❌ Agent FAILED for {transaction_id}: {e}")
+            print(f"ERROR: Agent FAILED for {transaction_id}: {e}")
 
             # Mark the row so the retry worker can pick it up
             conn = None
@@ -229,7 +229,7 @@ def run_ai(transaction_id, event_dict):
                 )
                 conn.commit()
             except Exception as db_err:
-                print(f"❌ Could not mark FAILED in DB: {db_err}")
+                print(f"ERROR: Could not mark FAILED in DB: {db_err}")
             finally:
                 if cursor:
                     cursor.close()
@@ -253,7 +253,7 @@ def health():
 @app.post("/ingest")
 def ingest_event(event: Event, bg: BackgroundTasks):
 
-    print("🔥 INGEST STARTED")
+    print("INGEST STARTED")
 
     conn = None
     cursor = None
@@ -314,7 +314,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
         return {"status": "queued"}
 
     except Exception as e:
-        print("❌ INGEST FAILED:", e)
+        print("ERROR: INGEST FAILED:", e)
         return {"error": str(e)}
 
     finally:
@@ -330,7 +330,7 @@ def ingest_event(event: Event, bg: BackgroundTasks):
 @app.post("/simulate")
 def simulate_events():
 
-    print("⚡ Simulating traffic...")
+    print("Simulating traffic...")
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -387,7 +387,7 @@ def simulate_events():
 # RETRY WORKER
 # -------------------------
 def retry_pending_ai():
-    print("🔄 Checking pending AI jobs...")
+    print("Checking pending AI jobs...")
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -420,7 +420,7 @@ def retry_pending_ai():
 
     for tx_id, event_data in rows:
         try:
-            print(f"⚡ Retrying AI for {tx_id}")
+            print(f"Retrying AI for {tx_id}")
 
             if not event_data:
                 continue
@@ -437,7 +437,7 @@ def retry_pending_ai():
             ).start()
 
         except Exception as e:
-            print("❌ Retry failed:", e)
+            print("ERROR: Retry failed:", e)
 
     cursor.close()
     conn.close()

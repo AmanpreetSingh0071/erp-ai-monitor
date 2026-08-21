@@ -196,7 +196,7 @@ def call_llm(case, llm, cache, delay, cache_file):
                 m = re.search(r"try again in ([0-9.]+)s", msg)
                 if m:
                     wait = float(m.group(1)) + 1
-                print(f"   ⏳ rate limited, waiting {wait:.0f}s...")
+                print(f"   rate limited, waiting {wait:.0f}s...")
                 time.sleep(wait); attempt += 1
                 if attempt > 5:
                     raise
@@ -408,7 +408,7 @@ def main():
         print("CONFIG C — Full agent (gate + few-shot LLM review + routing)")
         det_c, route_c, conf_c = run_config_c(cases, model, args.delay, args.model)
         if det_c is None:
-            print("\n⚠️  GROQ_API_KEY not set — Config C skipped.")
+            print("\nWARNING: GROQ_API_KEY not set — Config C skipped.")
         else:
             mc = detection_metrics(cases, det_c)
             results["C_agent"] = mc
@@ -455,7 +455,7 @@ def main():
               f"{m['f1']*100:7.1f}{m['fpr']*100:7.1f}")
     if routing_acc:
         print(f"\nRQ1 routing accuracy (Config C): {routing_acc[0]*100:.1f}%")
-    print(f"\n✅ Wrote {detection_csv}"
+    print(f"\nOK: Wrote {detection_csv}"
           + (f" and {routing_csv}" if routing_acc else ""))
 
 

@@ -161,7 +161,7 @@ def main():
         plt.legend()
         plt.tight_layout()
         plt.savefig("routing_threshold_sweep.png", dpi=150)
-        print("\n✅ Wrote routing_threshold_sweep.png and results_threshold_routing.csv")
+        print("\nOK: Wrote routing_threshold_sweep.png and results_threshold_routing.csv")
     except Exception as e:
         print(f"\n(plot skipped: {e})")
 
