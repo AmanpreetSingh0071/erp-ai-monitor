@@ -49,11 +49,11 @@ def startup_event():
 
     print("Training detection model...")
 
-    # Trained in-process rather than loaded from a pickle. Training is
-    # deterministic (seed 42) and takes milliseconds, so the served model is
-    # provably the one described in Section 3.3 and Appendix B, rather than
-    # whatever pickle happens to be present. It also removes a scikit-learn
-    # version coupling between the training machine and the deployment.
+    # Train the model when the application starts instead of loading a saved
+    # pickle file. Training uses seed 42 and the parameters in
+    # models/train_anomaly_model.py, so the deployed model matches the setup
+    # described in Section 3.3 and Appendix B. It also avoids depending on the
+    # scikit-learn version that wrote the pickle.
     try:
         import importlib.util
 
@@ -184,7 +184,8 @@ def claim_transaction(transaction_id):
         return won
     except Exception as e:
         print(f"WARNING: Claim failed for {transaction_id}: {e}")
-        # Fail open: better to risk a duplicate than to drop the work entirely.
+        # # Allow processing to continue if the claim fails, so a transaction is not
+        # dropped because of a claim error.
         return True
     finally:
         if cursor:
@@ -196,8 +197,8 @@ def claim_transaction(transaction_id):
 def run_ai(transaction_id, event_dict):
     """Entry point for background threads: delegates to the LangGraph agent."""
 
-    # Single claim point. If another thread already owns this transaction we
-    # stop here rather than queueing behind the semaphore and re-running it.
+    # Claim the transaction before starting the agent. If another thread has
+    # already claimed it, do not process the same transaction again.
     if not claim_transaction(transaction_id):
         print(f"Skipping {transaction_id} — already being processed")
         return
@@ -404,8 +405,8 @@ def retry_pending_ai():
 
     conn.commit()
 
-    # Plain select: run_ai() claims each row, so the poller does not need to.
-    # Anything already PROCESSING is skipped by the WHERE clause.
+    # run_ai() claims each row before processing, so the poller only selects
+    # rows that are still pending.
     cursor.execute(
         """
         SELECT transaction_id, event_data

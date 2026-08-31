@@ -1,17 +1,19 @@
 """
 RQ1: Confidence-Threshold Routing Analysis
 ==========================================
-Tests the routing mechanism RQ1 actually names: instead of letting the LLM pick
-a routing label, take its confidence score and apply thresholds:
+Tests the confidence-threshold routing approach described in RQ1.
+
+The confidence score from the LLM is turned into a routing decision using:
 
     confidence >= HIGH (0.85)  -> AUTO_REMEDIATE
     confidence >= LOW  (0.60)  -> INVESTIGATE
     confidence <  LOW          -> ESCALATE
 
-Compares fixed-threshold routing against the expected routing, prints a
+The script compares these decisions with the expected routing labels, prints a
 confusion matrix, then sweeps the AUTO_REMEDIATE threshold from 0.50 to 1.00 to
-show whether ANY threshold choice produces reliable routing. Pure analysis over
-the cached LLM responses: no API calls.
+see whether any threshold gives reliable routing.
+
+The analysis uses cached LLM responses and makes no new API calls.
 
 Outputs:
   - console summary + confusion matrix
@@ -36,7 +38,7 @@ def load_cases(path="ground_truth.csv"):
 
 
 def load_cache_by_case(path=CACHE_FILE):
-    """Cache keys are 'case_id:hash'. Extract confidence + flags per case_id."""
+    """Read the cached confidence and routing information for each case."""
     raw = json.load(open(path))
     out = {}
     for key, val in raw.items():
@@ -62,8 +64,7 @@ def threshold_route(conf, high, low):
 
 
 def evaluate(cases, cache, high, low):
-    """Return (accuracy, correct, total, confusion, escalate_count) over
-    flagged anomalies whose expected routing is a real routing label."""
+    """Calculate routing accuracy and the confusion matrix for anomaly cases."""
     confusion = {a: {p: 0 for p in ROUTING_LABELS} for a in ROUTING_LABELS}
     correct = total = escalate = 0
     rows = []

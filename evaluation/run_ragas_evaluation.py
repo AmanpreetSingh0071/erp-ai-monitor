@@ -59,7 +59,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 # -------------------------------------------------------------------
-# Reuse the RQ2 knowledge base and category list (single source of truth)
+# Reuse the RQ2 knowledge base and category list
 # -------------------------------------------------------------------
 def load_rq2_module(path):
     """Import run_rag_experiment.py by path so KB/CATEGORIES are never duplicated."""
@@ -305,10 +305,9 @@ def main():
             )
             answer = generate_answer(llm, c["signature"], contexts, cache,
                                      cache_file, args.model, args.delay)
-            # Reference = the labelled root cause plus the analyst note recorded
-            # in ground_truth.csv. A bare category name is too terse for
-            # context_recall to judge fairly; the note is ground-truth data, not
-            # anything invented here.
+            # Use the labelled root cause and predefined analyst note from
+            # ground_truth.csv as the reference. The category name alone is too
+            # short for context_recall.
             reference = (f"The root cause of this failure is "
                          f"{c['category'].replace('_', ' ').lower()}.")
             if c["notes"]:
@@ -360,8 +359,8 @@ def main():
         print(f"   KB={size}: {pretty}  "
               f"vote_acc={row['retrieval_vote_accuracy']*100:.1f}%")
 
-        # Write after EVERY KB size, so a rate-limit abort still leaves usable
-        # results on disk instead of losing the whole run.
+        # Save results after each KB size so completed results are kept if the
+        # run stops because of a rate limit.
         write_outputs(summary_rows, per_sample_rows)
         print(f"   (results so far saved: {len(summary_rows)} KB size(s))\n")
 

@@ -36,8 +36,8 @@ def evaluate_rules(event):
         field = rule["field"]
         threshold = rule["threshold"]
 
-        # Inclusive comparison, matching Section 3.3 and the evaluation
-        # harness: an event is flagged at the threshold, not above it.
+        # Use an inclusive comparison so an event is flagged when it reaches
+        # the threshold, matching the evaluation setup in Section 3.3.
         if event.get(field, 0) >= threshold:
             violations.append(rule["name"])
 

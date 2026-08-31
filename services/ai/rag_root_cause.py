@@ -27,9 +27,9 @@ def build_vectorstore():
     loader = TextLoader(file_path)
     docs = loader.load()
 
-    # Split into one chunk per incident. Without this the whole knowledge base
-    # is a single document, so retrieval returns everything and the prompt
-    # carries ~2,700 tokens on every agent call.
+    # Split the knowledge base into one chunk per incident. Without this,
+    # retrieval returns the whole file and the prompt carries about 2,700
+    # tokens on every agent call.
     splitter = RecursiveCharacterTextSplitter(
         separators=["\nINCIDENT:", "\n=== ", "\n\n", "\n"],
         chunk_size=600,

@@ -272,10 +272,10 @@ CASES = [
          notes="Peak throttle blocking revenue; escalate"),
 
     # ---------------- NORMAL cases (6): 3 quiet + 3 noisy FP-traps ----------------
-    # Quiet normals sit below rule thresholds (retry<3 AND delay<30) -> clear negatives.
-    # Noisy normals TRIP a rule threshold but are genuinely benign. Rules-only will
-    # false-positive on these; the Isolation Forest (trained on an L-shaped normal
-    # region) and the semantic agent layer should rescue them. This is the crux of RQ3.
+    # Quiet normal cases sit below the rule thresholds (retry<3 and delay<30)
+    # and act as clear negatives. Noisy normal cases exceed a rule threshold but
+    # are still benign. These cases test whether the Isolation Forest and the
+    # semantic agent can reduce false positives.
     dict(system="Oracle_Fusion", partner="Stripe", failure_category="NORMAL",
          retry_count=0, delay_minutes=5, severity="LOW",
          error_signature="Clean transaction, no retries, fast completion",
@@ -328,7 +328,7 @@ def build():
             "severity": c["severity"],
             "error_signature": c["error_signature"],
             "expected_detection": c["expected_detection"],
-            # expected_root_cause == the category for anomalies, "NONE" for normal
+            # Use the category for anomalies and "NONE" for normal cases.
             "expected_root_cause": c["failure_category"] if c["failure_category"] != "NORMAL" else "NONE",
             "expected_routing": c["expected_routing"],
             "notes": c["notes"],

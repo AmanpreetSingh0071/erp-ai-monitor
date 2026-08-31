@@ -290,10 +290,9 @@ def main():
         v = by_level[lvl]
         print(f"  consistency {lvl:.2f}: accuracy {np.mean(v)*100:5.1f}%  (n={len(v)})")
 
-    # Two-class scoped analysis: restrict to decisions the model can represent
-    # (AUTO_REMEDIATE vs INVESTIGATE). The model almost never samples ESCALATE,
-    # so ESCALATE-expected cases are near-unwinnable and depress every signal;
-    # scoping to representable decisions gives a fair test of discrimination.
+    # For this analysis, use the two decisions that the model represents most
+    # often: AUTO_REMEDIATE and INVESTIGATE. ESCALATE is rarely selected, so
+    # including it would make the comparison difficult to interpret.
     two = [r for r in rows if r["expected_routing"] in ("AUTO_REMEDIATE", "INVESTIGATE")]
     if two:
         t_cons = [r["consistency"] for r in two]
@@ -312,11 +311,9 @@ def main():
         for lvl in sorted(t_by):
             v = t_by[lvl]
             print(f"     {lvl:.2f}: {np.mean(v)*100:5.1f}%  (n={len(v)})")
-        print("\n  Interpretation: scoping to representable decisions is the fair test")
-        print("  of whether agreement tracks correctness. Compare the two ladders:")
-        print("  a steeper, higher scoped ladder means the weak overall signal is")
-        print("  driven by the model's inability to represent ESCALATE, not by the")
-        print("  uncertainty mechanism itself.")
+        print("\n  Interpretation: This secondary analysis is restricted to")
+        print("  AUTO_REMEDIATE and INVESTIGATE. It shows how consistency relates")
+        print("  to correctness")
 
     # CSV
     with open("results_self_consistency.csv", "w", newline="") as f:

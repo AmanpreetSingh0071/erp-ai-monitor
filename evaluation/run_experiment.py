@@ -121,9 +121,9 @@ def save_cache(cache, path):
 
 
 def build_eval_prompt(case):
-    # Few-shot examples below are ILLUSTRATIVE and deliberately disjoint from
-    # the evaluation cases (different scenarios) to avoid data leakage. They
-    # teach the routing principle: risk + severity + clarity, not keyword match.
+    # These examples are different from the evaluation cases so they are not
+    # reused during testing. They show how risk, severity and clarity affect
+    # the routing decision.
     return f"""You are an ERP integration monitoring agent (Oracle NetSuite, SAP, EDI).
 
 A candidate event has been flagged by upstream detection. Decide whether it is a
@@ -383,8 +383,8 @@ def main():
     safe_model = args.model.replace("/", "_").replace(":", "_")
 
     cases = load_cases(args.ground_truth)
-    # Namespace outputs by case set so a held-out run never overwrites the
-    # synthetic results already reported.
+    # Use a separate output name for each case set so validation results do
+    # not overwrite the synthetic results.
     stem = os.path.splitext(os.path.basename(args.ground_truth))[0]
     suffix = "" if stem == "ground_truth" else f"_{stem}"
     print(f"Loaded {len(cases)} ground-truth cases.")

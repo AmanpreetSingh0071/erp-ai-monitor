@@ -1,15 +1,14 @@
 """
-SUPERSEDED. Not part of the running system.
+This file contains the earlier Kafka-based processing version.
 
-An earlier Kafka-based processing path, kept as a record of the design
-decision described in the findings log. The deployed system uses in-process
-background threads in backend/main.py instead. This module is not imported
-anywhere and requires kafka, which is not in requirements.txt, so it cannot
-run as shipped.
+It is not used by the current application, which processes events using
+background threads in backend/main.py. The module is not imported anywhere,
+and kafka is not listed in requirements.txt, so it cannot run as it stands.
 
-The detector is now trained in-process from models/train_anomaly_model.py
-rather than loaded from a pickle, so that the served model provably matches
-the parameters documented in Appendix B.
+The file is kept because it records an earlier version of the processing
+approach used during development. The current system trains the detector
+in-process from models/train_anomaly_model.py rather than loading a pickle,
+so the served model matches the parameters in Appendix B.
 """
 
 import joblib

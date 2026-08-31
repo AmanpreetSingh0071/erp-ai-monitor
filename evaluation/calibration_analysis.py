@@ -69,7 +69,7 @@ def ece_equal_width(conf, corr, n_bins=10):
 
 
 def reliability_by_value(conf, corr):
-    """Per distinct confidence value: n, accuracy. Honest for discrete scores."""
+    """Calculate the number of cases and accuracy for each confidence value."""
     table = []
     for v in sorted(set(conf)):
         mask = conf == v
@@ -144,8 +144,9 @@ def main():
     brier_cal = brier_score_loss(corr, cal)
     coef = platt.coef_[0][0]
     if len(set(corr)) > 1:
-        # AUROC is invariant to a monotonic-increasing map; if coef<0 the map is
-        # decreasing and AUROC reflects as (1 - original). |AUROC-0.5| is preserved.
+        # Platt scaling normally preserves the ordering of the scores. If the
+        # fitted coefficient is negative, the ordering is reversed, so AUROC
+        # changes accordingly.
         auroc_cal = roc_auc_score(corr, cal)
     else:
         auroc_cal = float("nan")
