@@ -57,7 +57,8 @@ def claim_transaction(transaction_id):
         return won
     except Exception as e:
         print(f"\\u26a0\\ufe0f  Claim failed for {transaction_id}: {e}")
-        # Fail open: better to risk a duplicate than to drop the work entirely.
+        # Allow processing to continue if the claim fails, so a transaction is not
+        # dropped because of a claim error.
         return True
     finally:
         if cursor:
@@ -77,8 +78,8 @@ OLD_RUN_AI_HEAD = '''def run_ai(transaction_id, event_dict):
 NEW_RUN_AI_HEAD = '''def run_ai(transaction_id, event_dict):
     """Entry point for background threads — delegates to the LangGraph agent."""
 
-    # Single claim point. If another thread already owns this transaction we
-    # stop here rather than queueing behind the semaphore and re-running it.
+    # Claim the transaction before starting the agent. If another thread has
+    # already claimed it, do not process the same transaction again.
     if not claim_transaction(transaction_id):
         print(f"⏭️  Skipping {transaction_id} — already being processed")
         return
@@ -110,8 +111,8 @@ OLD_WORKER_CLAIM = '''    # Claim rows atomically: mark them PROCESSING as we se
 
 NEW_WORKER_SELECT = '''    conn.commit()
 
-    # Plain select — run_ai() claims each row, so the poller does not need to.
-    # Anything already PROCESSING is skipped by the WHERE clause.
+    # run_ai() claims each row before processing, so the poller only selects
+    # rows that are still pending.
     cursor.execute(
         """
         SELECT transaction_id, event_data

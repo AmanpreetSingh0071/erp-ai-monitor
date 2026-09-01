@@ -47,11 +47,11 @@ OLD = '''    print("🔄 Loading ML model...")
 
 NEW = '''    print("🔄 Training detection model...")
 
-    # Trained in-process rather than loaded from a pickle. Training is
-    # deterministic (seed 42) and takes milliseconds, so the served model is
-    # provably the one described in Section 3.3 and Appendix B, rather than
-    # whatever pickle happens to be present. It also removes a scikit-learn
-    # version coupling between the training machine and the deployment.
+    # Train the model when the application starts instead of loading a saved
+    # pickle file. Training uses seed 42 and the parameters in
+    # models/train_anomaly_model.py, so the deployed model matches the setup
+    # described in Section 3.3 and Appendix B. It also avoids depending on the
+    # scikit-learn version that wrote the pickle.
     try:
         import importlib.util
 

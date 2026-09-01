@@ -39,8 +39,8 @@ def main():
     # 2. pass it to load_cases and namespace the outputs
     old = """    cases = load_cases()"""
     new = """    cases = load_cases(args.ground_truth)
-    # Namespace outputs by case set so a held-out run never overwrites the
-    # synthetic results already reported.
+    # Use a separate output name for each case set so validation results do
+    # not overwrite the synthetic results.
     stem = os.path.splitext(os.path.basename(args.ground_truth))[0]
     suffix = "" if stem == "ground_truth" else f"_{stem}\""""
     if old not in src:

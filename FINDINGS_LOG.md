@@ -142,7 +142,7 @@ distribution shaped as an L-region (low retry OR low delay = normal).
   proof: the semantic layer correctly returned NORMAL where neither rules nor the
   IF could. This single case justifies the architecture.
 - **RQ3 answer (provisional):** the hybrid does not dominate on all metrics; it
-  resolves the precision/recall tradeoff that the two numeric methods cannot, and
+  resolves the precision/recall tradeoff that the two numeric methods cannot and
   the semantic layer is what produces the net F1 gain.
 **Artefacts.** `results_detection.csv`, `llm_cache.json`.
 
@@ -214,7 +214,7 @@ reflection does carry weight.
 directly. RQ1 actually asks about routing on a confidence *threshold*, which had
 not yet been tested as a distinct mechanism.
 **Action.** Built analyse_routing_thresholds.py: take the cached confidence
-scores, discard the LLM's self-chosen label, and apply thresholds
+scores, discard the LLM's self-chosen label and apply thresholds
 (≥0.85 AUTO_REMEDIATE, ≥0.60 INVESTIGATE, <0.60 ESCALATE). Computed accuracy and
 a confusion matrix, then swept the AUTO threshold from 0.50 to 1.00. Pure
 analysis over the cache, no new API calls.
@@ -240,7 +240,7 @@ results_threshold_routing.csv.
 ### 2026-06-13: [ADMIN] Supervisor DPP feedback received
 **Context.** Individual DPP feedback came back through Canvas (and by email). The
 verdict was positive: the RQs, aims and methodology were described as clear and
-specific, and a strong start.
+specific and a strong start.
 **Action.** Noted three points to carry into the IPR and FPR. First, the project
 plan should use a Gantt chart that shows parallel activities (for example drafting
 the report alongside the practical work) rather than a strict waterfall. Second,
@@ -262,7 +262,7 @@ drafting the IPR.
 wrong") needed to be made quantitative and grounded in calibration theory.
 **Action.** Built calibration_analysis.py: Expected and Maximum Calibration
 Error, Brier score, overconfidence, a reliability diagram, the AUROC of
-confidence as a predictor of correctness (discrimination), and post-hoc Platt
+confidence as a predictor of correctness (discrimination) and post-hoc Platt
 scaling to test whether recalibration helps. Noted that classical temperature
 scaling needs per-class logits, which a self-reported scalar confidence does not
 provide, so Platt is the appropriate scalar method.
@@ -289,7 +289,7 @@ confidence_histogram.png, calibration_metrics.csv.
 
 ---
 
-### 2026-06-20: [RQ2] RAG diagnosis vs rule baseline, and knowledge-base size
+### 2026-06-20: [RQ2] RAG diagnosis vs rule baseline and knowledge-base size
 **Context.** RQ2 asks whether RAG-grounded diagnosis beats rule-based diagnosis,
 and at what knowledge-base size RAG begins to help (DPP specified 10/30/50).
 **Action.** Built run_rag_experiment.py with a 60-incident labelled knowledge
@@ -339,11 +339,11 @@ restricted to decisions the model can represent (AUTO_REMEDIATE vs INVESTIGATE).
   split: the model's uncertainty is always binary.
 - ESCALATE was sampled exactly once across all 220 samples.
 **Learned.** Agreement-based confidence carries more signal than self-reported
-confidence (AUROC 0.46 → 0.55), and within the model's representational capacity
+confidence (AUROC 0.46 → 0.55) and within the model's representational capacity
 the relationship is clear (unanimous agreement → 71% accuracy). But discrimination
-is still weak overall, and two independent symptoms confirm the binding
+is still weak overall and two independent symptoms confirm the binding
 constraint is the model's competence, not the uncertainty mechanism: it cannot
-represent ESCALATE, and its disagreement is never diffuse across all three
+represent ESCALATE and its disagreement is never diffuse across all three
 actions. Combined with the calibration study and the threshold sweep, RQ1 is now
 answered from three independent angles, all pointing to the same conclusion.
 **Caveats (for limitations).** K=5 gives only five distinct agreement levels;
@@ -375,7 +375,7 @@ roughly nine times the parameter count.
   0.9 confidence. The 8B never escalated once across hundreds of calls.
 - Calibration was essentially flat across the 9× size jump: ECE 0.417 → 0.407,
   AUROC 0.461 → 0.522 (still near the 0.5 chance line), overconfidence ~40 points
-  in both. The reliability table stayed non-monotonic, and Platt scaling again
+  in both. The reliability table stayed non-monotonic and Platt scaling again
   drove ECE to 0.000 while leaving AUROC unchanged.
 - Routing accuracy actually fell to 38.6% because the 70B collapsed 40 of 44
   cases into INVESTIGATE: a bucket-collapse effect, not worse discrimination.
@@ -410,7 +410,7 @@ perfect: 100% precision, recall and F1 at 0% FPR. ESCALATE used twice, against o
 for the 70B and never for the 8B.
 **Learned.** The two-point claim was wrong and had to be corrected in the report.
 Across 8B, 70B and 120B, ECE falls 0.417 to 0.407 to 0.331 and AUROC rises 0.461 to
-0.522 to 0.565: calibration improves with scale, monotonically, and far too slowly
+0.522 to 0.565: calibration improves with scale, monotonically and far too slowly
 to matter. At 120B the ECE is still about seven times the 0.05 threshold. The
 corrected claim is stronger than the original, not weaker.
 **Caveats (for limitations).** The step to 120B crosses model families, so part of
@@ -443,7 +443,7 @@ stub; and Groq rejects n>1, so the judge wrapper needs bypass_n.
 curve (50.0%, 73.6%, 81.4%) from a different pipeline on a different run, so the
 finding does not depend on the proxy. Context precision climbing 0.182 to 0.360 is
 the coverage mechanism measured directly. Context recall is flat at about 0.47:
-top_k is fixed at three, so recall is bounded by what three documents can cover, and
+top_k is fixed at three, so recall is bounded by what three documents can cover and
 the reference answers include a case-specific analyst note that no generic incident
 can support. Faithfulness is flat at 0.62 to 0.67, so better retrieval does not stop
 the model padding its explanation. The classification is stronger than the generation.
@@ -474,16 +474,17 @@ entirely empty: 8 of 24 cases required escalation and none was escalated, with 2
 0.410, AUROC 0.552, still non-monotonic, Platt again driving ECE to 0.000 with AUROC
 unchanged. Eighteen of 24 cases reported exactly 0.80 confidence and were 27.8%
 correct.
-**Learned.** Detection generalises to realistic error text, which is a genuine
-external-validity result for RQ3. Routing does not, and the failure is therefore not
-an artefact of clean synthetic wording. On a split of 9, 7 and 8 across the three
-actions, a constant classifier predicting the majority action scores 37.5%; the agent
-scored 37.5%. One thing did change: on the 8B synthetic run the dominant error sent
+**Learned.** Detection also worked on the realistic error text used for RQ3. Routing
+results were less consistent, so the realistic validation does not provide
+evidence that the routing behaviour generalises beyond the tested cases. 
+On a split of 9, 7 and 8 across the three actions, a constant classifier predicting 
+the majority action scores 37.5%; the agent scored 37.5%. 
+One thing did change: on the 8B synthetic run the dominant error sent
 escalate-needed cases to AUTO_REMEDIATE, whereas here every one went to INVESTIGATE.
 Still wrong, but wrong in the direction of under-reaction rather than over-action,
 which changes the risk profile without changing the conclusion.
 **Caveats (for limitations).** The set is synthetic, built from documented error
-formats rather than sampled from production incidents. N=24 is small, and the 0.92
+formats rather than sampled from production incidents. N=24 is small and the 0.92
 and 0.95 bins hold one correct case each, which is noise rather than evidence.
 **Artefacts.** realistic_validation.csv, scripts/migrations/add_ground_truth_flag.py,
 runs/2026-08-16-realistic-validation/.
@@ -498,7 +499,7 @@ from 16 August 2026, the model behind the primary RQ1 baseline.
 the cutoff. Switched the deployed agent to llama-3.3-70b-versatile, which was already
 characterised in the report.
 **Result.** By 17 August the 70B had also gone: the deployed agent returned 404
-model_not_found on every call, and the models endpoint showed neither Llama chat
+model_not_found on every call and the models endpoint showed neither Llama chat
 model remaining. Switched the agent to openai/gpt-oss-120b, the only one of the three
 study models still served and one for which full results already exist.
 **Learned.** Two of the three models used in this study ceased to be served within a
@@ -522,7 +523,7 @@ minus 8B [-0.128, +0.333], 120B minus 70B [-0.191, +0.278].
 **Learned.** Every interval contains 0.5, so no model's confidence is
 distinguishable from chance at the 95% level. Every pairwise difference contains
 zero, so the apparent improvement with scale is directional only and not a measured
-effect. This strengthens the central claim and correctly weakens the scale claim, and
+effect. This strengthens the central claim and correctly weakens the scale claim and
 it is the answer to the obvious examiner question about noise at this sample size.
 **Artefacts.** results_routing_*.csv (inputs).
 
@@ -536,8 +537,8 @@ documentation.
 **Action.** Verified each claim against the code. models/train_anomaly_model.py
 trained on a uniform box with no random seed and default estimators, rather than the
 documented L-region with 200 estimators and seed 42. configs/rules.yaml set the retry
-threshold to 5 rather than 3, and the rule engine compared with > rather than >=.
-The evaluation harness in run_experiment.py was correct on every point, and it trains
+threshold to 5 rather than 3 and the rule engine compared with > rather than >=.
+The evaluation harness in run_experiment.py was correct on every point and it trains
 its own model in-process, so no reported figure was affected: only the demonstrator
 differed.
 **Result.** train_anomaly_model.py rewritten to mirror the harness exactly, verified

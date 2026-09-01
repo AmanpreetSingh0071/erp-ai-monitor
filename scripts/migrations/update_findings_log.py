@@ -113,11 +113,12 @@ entirely empty: 8 of 24 cases required escalation and none was escalated, with 2
 0.410, AUROC 0.552, still non-monotonic, Platt again driving ECE to 0.000 with AUROC
 unchanged. Eighteen of 24 cases reported exactly 0.80 confidence and were 27.8%
 correct.
-**Learned.** Detection generalises to realistic error text, which is a genuine
-external-validity result for RQ3. Routing does not, and the failure is therefore not
-an artefact of clean synthetic wording. On a split of 9, 7 and 8 across the three
-actions, a constant classifier predicting the majority action scores 37.5%; the agent
-scored 37.5%. One thing did change: on the 8B synthetic run the dominant error sent
+**Learned.** Detection also worked on the realistic error text used for RQ3.
+The routing results were less consistent, so the realistic validation does not
+provide evidence that the routing behaviour generalises beyond the tested cases.
+On a split of 9, 7 and 8 across the three actions, a constant classifier predicting
+the majority action scores 37.5%; the agent scored 37.5%; the agent scored 37.5%.
+One thing did change: on the 8B synthetic run the dominant error sent
 escalate-needed cases to AUTO_REMEDIATE, whereas here every one went to INVESTIGATE.
 Still wrong, but wrong in the direction of under-reaction rather than over-action,
 which changes the risk profile without changing the conclusion.
