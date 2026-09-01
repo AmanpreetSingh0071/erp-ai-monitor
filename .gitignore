@@ -3,7 +3,7 @@
 .env.local
 .env.*.local
 
-# Python virtual environment
+# Python virtual environments
 .venv/
 venv/
 
@@ -22,19 +22,11 @@ node_modules/
 # Build outputs
 frontend/build/
 
-# Trained model (regenerate with train_anomaly_model.py)
-models/anomaly_model.pkl
-CLAUDE.md
-# RAGAS virtualenv — large and reinstallable
+# Trained model binaries - regenerate with train_anomaly_model.py
+models/*.pkl
+
+# RAGAS virtual environment - large and reinstallable
 evaluation/ragas_env/
-__pycache__/
-*.pyc
-# Virtual environments
-venv/
-.venv/
 
 # Environment setup: patches a dependency inside the RAGAS virtualenv
 evaluation/fix_ragas_vertexai.py
-
-# Trained model binaries
-models/*.pkl

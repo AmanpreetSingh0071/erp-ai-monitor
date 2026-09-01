@@ -474,9 +474,9 @@ entirely empty: 8 of 24 cases required escalation and none was escalated, with 2
 0.410, AUROC 0.552, still non-monotonic, Platt again driving ECE to 0.000 with AUROC
 unchanged. Eighteen of 24 cases reported exactly 0.80 confidence and were 27.8%
 correct.
-**Learned.** Detection also worked on the realistic error text used for RQ3. Routing
-results were less consistent, so the realistic validation does not provide
-evidence that the routing behaviour generalises beyond the tested cases. 
+**Learned.** Detection also worked on the realistic error text used for RQ3.
+Routing results were less consistent, so the realistic validation does not provide
+evidence that the routing behaviour generalises beyond the tested cases.
 On a split of 9, 7 and 8 across the three actions, a constant classifier predicting 
 the majority action scores 37.5%; the agent scored 37.5%. 
 One thing did change: on the 8B synthetic run the dominant error sent
@@ -569,5 +569,5 @@ scales and two independently constructed datasets. Practical work is complete.
 - [x] [RQ2] RAGAS re-evaluation on the full pipeline
 - [x] [RQ1] [RQ3] Realistic-syntax validation set
 - [x] [INFRA] Deployed artefact aligned with Appendix B
-- [ ] [WRITING] FPR (due 1 September): remaining edits to Chapters 4, 6, 7 and 8
-- [ ] [ADMIN] Mock demo 27 August; assessed demonstration early September
+- [x] [WRITING] FPR (due 1 September): remaining edits to Chapters 4, 6, 7 and 8
+- [x] [ADMIN] Mock demo 27 August; assessed demonstration early September

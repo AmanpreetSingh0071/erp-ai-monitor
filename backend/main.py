@@ -184,7 +184,7 @@ def claim_transaction(transaction_id):
         return won
     except Exception as e:
         print(f"WARNING: Claim failed for {transaction_id}: {e}")
-        # # Allow processing to continue if the claim fails, so a transaction is not
+        # Allow processing to continue if the claim fails, so a transaction is not.
         # dropped because of a claim error.
         return True
     finally:
